@@ -3,10 +3,6 @@ interface CanIUseParams {
   method?: string;
 }
 
-interface CanIUseResult {
-  canUse: boolean;
-}
-
 export const canIUse = (params: CanIUseParams): Promise<boolean> => {
   return new Promise((resolve, reject) => {
     if (!window.WindVane) {

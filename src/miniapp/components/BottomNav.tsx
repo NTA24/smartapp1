@@ -1,5 +1,6 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
+import { IconifyIcon } from "./IconifyIcon";
 
 const NAV_ITEMS = [
   { path: "/", page: "home", label: "Smart Home", icon: "ant-design:home-outlined" },
@@ -23,7 +24,7 @@ export const BottomNav: React.FC = () => {
           data-page={page}
         >
           <span className="nav-icon">
-            <iconify-icon icon={icon} />
+            <IconifyIcon icon={icon} />
           </span>
           <span className="nav-label">{label}</span>
         </Link>

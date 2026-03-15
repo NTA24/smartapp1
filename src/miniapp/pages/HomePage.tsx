@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { DeviceCard } from "../components/DeviceCard";
+import { IconifyIcon } from "../components/IconifyIcon";
 
 export const HomePage: React.FC = () => {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -18,7 +19,7 @@ export const HomePage: React.FC = () => {
           aria-label="Menu"
           onClick={() => setMenuOpen(true)}
         >
-          <iconify-icon icon="ant-design:menu-outlined" />
+          <IconifyIcon icon="ant-design:menu-outlined" />
         </button>
       </div>
       <div
@@ -31,11 +32,11 @@ export const HomePage: React.FC = () => {
         <Link to="/shared" className="menu-item" onClick={() => setMenuOpen(false)}>Đã chia sẻ</Link>
         <Link to="/nav-settings" className="menu-item" onClick={() => setMenuOpen(false)}>
           <span>Cài đặt điều hướng</span>
-          <span className="menu-icon"><iconify-icon icon="ant-design:setting-outlined" /></span>
+          <span className="menu-icon"><IconifyIcon icon="ant-design:setting-outlined" /></span>
         </Link>
         <Link to="/my-devices" className="menu-item" onClick={() => setMenuOpen(false)}>
           <span>Thiết bị của tôi</span>
-          <span className="menu-icon"><iconify-icon icon="ant-design:search-outlined" /></span>
+          <span className="menu-icon"><IconifyIcon icon="ant-design:search-outlined" /></span>
         </Link>
       </div>
       <div

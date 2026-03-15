@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
+import { IconifyIcon } from "./IconifyIcon";
 
 export const StatusBar: React.FC = () => {
   const [addMenuOpen, setAddMenuOpen] = useState(false);
@@ -16,7 +17,7 @@ export const StatusBar: React.FC = () => {
             title="Thông báo"
             onClick={() => { setNotifOpen(true); }}
           >
-            <iconify-icon icon="ant-design:bell-outlined" />
+            <IconifyIcon icon="ant-design:bell-outlined" />
           </button>
           <button
             type="button"
@@ -25,7 +26,7 @@ export const StatusBar: React.FC = () => {
             title="Thêm"
             onClick={() => { setAddMenuOpen(true); }}
           >
-            <iconify-icon icon="ant-design:plus-outlined" />
+            <IconifyIcon icon="ant-design:plus-outlined" />
           </button>
         </div>
       </header>

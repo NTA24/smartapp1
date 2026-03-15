@@ -1,6 +1,6 @@
 import React from "react";
-import { Link } from "react-router-dom";
 import { useDevicePower } from "../hooks/useDevicePower";
+import { IconifyIcon } from "./IconifyIcon";
 
 const POWER_SVG = (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -21,7 +21,7 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({
   deviceId,
   name,
   meta,
-  statusLabel,
+  statusLabel: _statusLabel,
   icon,
   defaultOn = false,
 }) => {
@@ -39,7 +39,7 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({
     >
       <div className="card-header">
         <div className="device-icon-wrap">
-          <iconify-icon icon={icon} />
+          <IconifyIcon icon={icon} />
         </div>
         <button
           type="button"

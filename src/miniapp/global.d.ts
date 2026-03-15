@@ -1,9 +1,21 @@
+/// <reference types="react" />
 export {};
+
+declare module "react" {
+  namespace JSX {
+    interface IntrinsicElements {
+      "iconify-icon": React.DetailedHTMLProps<
+        React.HTMLAttributes<HTMLElement> & { icon?: string },
+        HTMLElement
+      >;
+    }
+  }
+}
 
 declare global {
   interface Window {
     WindVane?: {
-      call: (module: string, method: string, params: unknown, onSuccess: (res: unknown) => void, onFail: (err: unknown) => void) => void;
+      call: (module: string, method: string, params: unknown, onSuccess?: (res: any) => void, onFail?: (err: any) => void) => void;
     };
     JSBridge?: {
       send: (path: string, data: unknown, callback?: (res: unknown) => void) => void;

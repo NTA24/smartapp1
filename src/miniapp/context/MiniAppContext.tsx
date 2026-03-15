@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
+import React, { createContext, useCallback, useContext, useState } from "react";
 import { getMiniAppAppId, getApiBase, saveAppId, STORAGE_KEY_APP_ID } from "../lib/config";
 import { storeGet } from "../lib/store";
 import { loginMiniApp, getPhoneFromLoginResult } from "../services/auth";

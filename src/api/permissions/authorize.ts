@@ -49,7 +49,12 @@ export const authorize = async (
   }
 
   return new Promise((resolve, reject) => {
-    window.WindVane.call(
+    const wv = window.WindVane;
+    if (!wv) {
+      reject(new Error("WindVane is not available."));
+      return;
+    }
+    wv.call(
       "wv",
       "authorize",
       { scope },

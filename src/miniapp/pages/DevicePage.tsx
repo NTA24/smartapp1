@@ -2,6 +2,7 @@ import React, { useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useDevicePower } from "../hooks/useDevicePower";
 import { Store } from "../lib/store";
+import { IconifyIcon } from "../components/IconifyIcon";
 
 const POWER_SVG = (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -11,7 +12,7 @@ const POWER_SVG = (
 
 export const DevicePage: React.FC = () => {
   const { deviceId } = useParams<{ deviceId: string }>();
-  const id = deviceId ?? Store.get("currentDeviceId", "1");
+  const id: string = deviceId ?? Store.get("currentDeviceId", "1") ?? "1";
   const isLight = id === "2";
   const { on, toggle } = useDevicePower(id, id === "1");
 
@@ -33,14 +34,14 @@ export const DevicePage: React.FC = () => {
         </Link>
         <span className="title">{title}</span>
         <span className="menu-dots">
-          <iconify-icon icon="ant-design:ellipsis-outlined" />
+          <IconifyIcon icon="ant-design:ellipsis-outlined" />
         </span>
       </div>
       {isLight ? (
         <>
           <div className="device-light-body">
             <div className="device-icon-wrap device-light-icon">
-              <iconify-icon icon="ant-design:bulb-outlined" />
+              <IconifyIcon icon="ant-design:bulb-outlined" />
             </div>
             <div className="power-control" id="device-power" onClick={toggle}>
               <div className={`power-icon ${on ? "on" : ""}`}>
@@ -51,7 +52,7 @@ export const DevicePage: React.FC = () => {
           </div>
           <div className="device-actions-section">
             <Link to={`/device/${id}/timer`} className="feature-card">
-              <div className="feature-icon"><iconify-icon icon="ant-design:clock-circle-outlined" /></div>
+              <div className="feature-icon"><IconifyIcon icon="ant-design:clock-circle-outlined" /></div>
               <div className="feature-content">
                 <div className="feature-title">Hẹn giờ</div>
                 <div className="feature-desc">Bật/tắt thiết bị theo lịch</div>
@@ -59,7 +60,7 @@ export const DevicePage: React.FC = () => {
               <span className="feature-arrow">›</span>
             </Link>
             <Link to={`/device/${id}/automation`} className="feature-card">
-              <div className="feature-icon"><iconify-icon icon="ant-design:thunderbolt-outlined" /></div>
+              <div className="feature-icon"><IconifyIcon icon="ant-design:thunderbolt-outlined" /></div>
               <div className="feature-content">
                 <div className="feature-title">Tự động hóa</div>
                 <div className="feature-desc">Thiết lập kịch bản tự động</div>
@@ -88,7 +89,7 @@ export const DevicePage: React.FC = () => {
           </div>
           <div className="device-actions-section">
             <Link to={`/device/${id}/timer`} className="feature-card">
-              <div className="feature-icon"><iconify-icon icon="ant-design:clock-circle-outlined" /></div>
+              <div className="feature-icon"><IconifyIcon icon="ant-design:clock-circle-outlined" /></div>
               <div className="feature-content">
                 <div className="feature-title">Hẹn giờ</div>
                 <div className="feature-desc">Bật/tắt thiết bị theo lịch</div>
@@ -96,7 +97,7 @@ export const DevicePage: React.FC = () => {
               <span className="feature-arrow">›</span>
             </Link>
             <Link to={`/device/${id}/automation`} className="feature-card">
-              <div className="feature-icon"><iconify-icon icon="ant-design:thunderbolt-outlined" /></div>
+              <div className="feature-icon"><IconifyIcon icon="ant-design:thunderbolt-outlined" /></div>
               <div className="feature-content">
                 <div className="feature-title">Tự động hóa</div>
                 <div className="feature-desc">Thiết lập kịch bản tự động</div>
