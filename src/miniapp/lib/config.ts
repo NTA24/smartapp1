@@ -1,7 +1,7 @@
 import { storeGet, storeSet } from "./store";
 
 const STORAGE_KEY_APP_ID = "miniapp_app_id";
-const DEFAULT_MINIAPP_APP_ID = "1512032299590111735808";
+export const DEFAULT_MINIAPP_APP_ID = "1512032299590111735808";
 const VERCEL_API_BASE = "https://smartapp-ten.vercel.app/api";
 
 function getAppIdFromUrl(): string {

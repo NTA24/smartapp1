@@ -1,7 +1,7 @@
-import React, { createContext, useCallback, useContext, useState } from "react";
-import { getMiniAppAppId, getApiBase, saveAppId, STORAGE_KEY_APP_ID } from "../lib/config";
+import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { getMiniAppAppId, getApiBase, saveAppId, STORAGE_KEY_APP_ID, DEFAULT_MINIAPP_APP_ID } from "../lib/config";
 import { storeGet } from "../lib/store";
-import { loginMiniApp, getPhoneFromLoginResult } from "../services/auth";
+import { loginMiniApp, getPhoneFromLoginResult, onWindVaneReady } from "../services/auth";
 
 interface MiniAppState {
   userPhone: string;
@@ -55,6 +55,45 @@ export function MiniAppProvider({ children }: { children: React.ReactNode }) {
     saveAppId(id);
     setState((s) => ({ ...s, appId: getMiniAppAppId() }));
   }, []);
+
+  // Khi mở từ super app: đợi WindVane → đảm bảo appId → gọi auth (getAuthCode + superapp-login) và author (getSetting)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        await onWindVaneReady();
+        if (cancelled) return;
+        if (!window.WindVane?.call) return; // Không chạy trong super app → bỏ qua
+
+        // Đảm bảo appId dùng 1512032299590111735808 khi chưa có
+        const current = getMiniAppAppId();
+        if (!current || current.trim() === "") {
+          saveAppId(DEFAULT_MINIAPP_APP_ID);
+          setState((s) => ({ ...s, appId: DEFAULT_MINIAPP_APP_ID }));
+        }
+
+        // Auth: getAuthCode + superapp-login để lấy thông tin user (số ĐT, v.v.)
+        const data = await loginMiniApp();
+        if (cancelled) return;
+        const phone = getPhoneFromLoginResult(data);
+        if (phone) setUserPhone(phone);
+
+        // Author: đồng bộ trạng thái quyền thiết bị (getSetting)
+        const P = window.MiniAppPermissions;
+        if (P?.getSetting) {
+          const settings = await P.getSetting().catch(() => null);
+          if (!cancelled && settings?.authSetting && P.setPermissionStatus) {
+            P.setPermissionStatus(settings.authSetting);
+          }
+        }
+      } catch {
+        // User hủy / không có WindVane / mạng lỗi → bỏ qua
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [setUserPhone]);
 
   const value: MiniAppContextValue = {
     ...state,
