@@ -12,15 +12,19 @@ export type PermissionScope =
   | "vibrate"
   | "screen";
 
+/** Scope cho device (PermissionScope) hoặc user info (USER_NAME, USER_PHONE_NUMBER, ...) */
+export type AuthorizeScope = PermissionScope | "USER_NAME" | "USER_PHONE_NUMBER" | string;
+
 export interface AuthorizeResult {
   successScope: Record<string, boolean>;
   msg: string;
 }
 
-const hasPermission = async (scope: PermissionScope): Promise<boolean> => {
+const hasPermission = async (scope: AuthorizeScope): Promise<boolean> => {
   try {
     const settings = await getSetting();
-    return Boolean(settings.authSetting?.[scope]);
+    const auth = settings.authSetting as Record<string, boolean> | undefined;
+    return Boolean(auth?.[scope]);
   } catch (err) {
     console.warn("Unable to fetch permission settings:", err);
     return false;
@@ -28,7 +32,7 @@ const hasPermission = async (scope: PermissionScope): Promise<boolean> => {
 };
 
 const buildSuccessResult = (
-  scope: PermissionScope,
+  scope: AuthorizeScope,
   msg = "Permission granted"
 ): AuthorizeResult => ({
   successScope: { [scope]: true },
@@ -36,7 +40,7 @@ const buildSuccessResult = (
 });
 
 export const authorize = async (
-  scope: PermissionScope
+  scope: AuthorizeScope
 ): Promise<AuthorizeResult> => {
   if (!window.WindVane) {
     throw new Error(

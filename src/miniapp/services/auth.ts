@@ -1,5 +1,7 @@
 import { getApiBase, getMiniAppAppId, DEFAULT_SCOPES } from "../lib/config";
 import { addLog } from "../lib/debugLog";
+import { getAuthCode as apiGetAuthCode } from "../../api/authentication/getAuthCode";
+import { authorize } from "../../api/permissions/authorize";
 
 const WV_READY_TIMEOUT_MS = 12000; // Đợi tối đa 12s (CDN load + super app inject)
 const WV_POLL_INTERVAL_MS = 150;  // Kiểm tra mỗi 150ms
@@ -53,94 +55,48 @@ export function onWindVaneReady(): Promise<void> {
   });
 }
 
-// Authorize từng user-info scope với WindVane trước khi getAuthCode
-function authorizeScopes(scopes: string[]): Promise<void> {
-  return new Promise((resolve) => {
-    if (!isWindVaneReady()) {
-      addLog("authorizeScopes: WindVane chưa sẵn sàng, bỏ qua authorize");
-      return resolve();
-    }
-    let remaining = scopes.length;
-    if (remaining === 0) return resolve();
-
-    scopes.forEach((scope) => {
-      addLog("authorizeScopes: authorize scope=" + scope);
-      window.WindVane!.call(
-        "wv",
-        "authorize",
-        { scope },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (res: any) => {
-          addLog("authorizeScopes: OK scope=" + scope, res);
-          if (--remaining === 0) resolve();
-        },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (err: any) => {
-          // Không throw — scope có thể đã được authorize trước đó
-          addLog("authorizeScopes: lỗi scope=" + scope + " (bỏ qua)", err);
-          if (--remaining === 0) resolve();
-        }
-      );
-    });
-  });
-}
-
-function getAuthCodeOnce(scopes: string[]): Promise<{ authCode: string }> {
-  return onWindVaneReady()
-    .then(() => authorizeScopes(scopes))
-    .then(
-      () =>
-        new Promise((resolve, reject) => {
-          if (!isWindVaneReady()) {
-            addLog("getAuthCodeOnce: WindVane chưa sẵn sàng sau khi đợi");
-            reject(new Error("WindVane chưa sẵn sàng"));
-            return;
-          }
-          const appId = getMiniAppAppId();
-          if (!appId) {
-            addLog("getAuthCodeOnce: appId rỗng");
-            reject(new Error("appId đang rỗng"));
-            return;
-          }
-          addLog("getAuthCodeOnce: gọi WindVane.call getAuthCode appId=" + appId.slice(0, 8) + "...");
-          window.WindVane!.call(
-            "wv",
-            "getAuthCode",
-            { appId, scopes },
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (res: any) => {
-              const r = res as { authCode?: string };
-              if (!r?.authCode) {
-                addLog("getAuthCodeOnce: response không có authCode", r);
-                reject(new Error("Không nhận được authCode"));
-              } else {
-                addLog("getAuthCodeOnce: OK, authCode length=" + (r.authCode?.length ?? 0));
-                resolve({ authCode: r.authCode });
-              }
-            },
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (err: any) => {
-              addLog("getAuthCodeOnce: WindVane callback lỗi", err);
-              reject(err ?? new Error("getAuthCode fail"));
-            }
-          );
-        })
-    );
-}
-
+/** Đợi WindVane, authorize từng scope (API), rồi gọi API getAuthCode. Retry tối đa 3 lần khi WindVane chưa sẵn sàng. */
 export function getAuthCode(scopes: string[] = [...DEFAULT_SCOPES]): Promise<{ authCode: string }> {
-  const tryGetAuthCode = (attempt: number): Promise<{ authCode: string }> =>
-    getAuthCodeOnce(scopes).catch((err) => {
-      const msg = err?.message ?? "";
-      const isNotReady = msg.includes("WindVane chưa sẵn sàng") || msg.includes("chưa sẵn sàng");
-      if (isNotReady && attempt < 3) {
-        addLog("getAuthCode: retry", attempt + 1, "/ 3 —", msg);
-        return new Promise<void>((r) => setTimeout(r, 400)).then(() => tryGetAuthCode(attempt + 1));
-      }
-      addLog("getAuthCode: thất bại", attempt + 1, "lần —", msg, err);
-      throw err;
-    });
-  return tryGetAuthCode(0);
+  const tryOnce = (attempt: number): Promise<{ authCode: string }> =>
+    onWindVaneReady()
+      .then(() => {
+        if (!isWindVaneReady()) {
+          addLog("getAuthCode: WindVane chưa sẵn sàng sau khi đợi");
+          throw new Error("WindVane chưa sẵn sàng");
+        }
+        const appId = getMiniAppAppId();
+        if (!appId) {
+          addLog("getAuthCode: appId rỗng");
+          throw new Error("appId đang rỗng");
+        }
+        return appId;
+      })
+      .then(async (appId) => {
+        for (const scope of scopes) {
+          try {
+            addLog("getAuthCode: authorize scope=" + scope);
+            await authorize(scope);
+            addLog("getAuthCode: authorize OK scope=" + scope);
+          } catch (e) {
+            addLog("getAuthCode: authorize lỗi scope=" + scope + " (bỏ qua)", e);
+          }
+        }
+        addLog("getAuthCode: gọi API getAuthCode appId=" + appId.slice(0, 8) + "...");
+        const result = await apiGetAuthCode(appId, scopes);
+        return { authCode: result.authCode };
+      })
+      .catch((err) => {
+        const msg = err?.message ?? "";
+        const isNotReady = msg.includes("WindVane") && (msg.includes("not available") || msg.includes("chưa sẵn sàng"));
+        if (isNotReady && attempt < 3) {
+          addLog("getAuthCode: retry", attempt + 1, "/ 3 —", msg);
+          return new Promise<void>((r) => setTimeout(r, 400)).then(() => tryOnce(attempt + 1));
+        }
+        addLog("getAuthCode: thất bại —", msg, err);
+        throw err;
+      });
+
+  return tryOnce(0);
 }
 
 export interface SuperAppLoginResult {
