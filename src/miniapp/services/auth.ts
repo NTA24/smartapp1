@@ -73,34 +73,60 @@ export function getAuthCode(scopes: string[] = [...DEFAULT_SCOPES]): Promise<{ a
         return appId;
       })
       .then(async (appId) => {
-        // Nền tảng (Tammi) có thể yêu cầu location permission trước khi cho auth code — dùng API authorize + getLocation
-        try {
-          addLog("getAuthCode: authorize location (API)");
-          await authorize("location");
-          addLog("getAuthCode: authorize location OK");
-        } catch (e) {
-          addLog("getAuthCode: authorize location lỗi (bỏ qua)", e);
-        }
-        try {
-          addLog("getAuthCode: gọi getLocation (API) để đảm bảo consent location");
-          await getLocation({});
-          addLog("getAuthCode: getLocation OK");
-        } catch (e) {
-          addLog("getAuthCode: getLocation lỗi (bỏ qua)", e);
-        }
-
-        for (const scope of scopes) {
+        const ensureLocationAndConsent = async () => {
           try {
-            addLog("getAuthCode: authorize scope=" + scope);
-            await authorize(scope);
-            addLog("getAuthCode: authorize OK scope=" + scope);
+            addLog("getAuthCode: authorize location (API)");
+            await authorize("location");
+            addLog("getAuthCode: authorize location OK");
           } catch (e) {
-            addLog("getAuthCode: authorize lỗi scope=" + scope + " (bỏ qua)", e);
+            addLog("getAuthCode: authorize location lỗi (bỏ qua)", e);
           }
+          try {
+            addLog("getAuthCode: gọi getLocation (API)");
+            await getLocation({});
+            addLog("getAuthCode: getLocation OK");
+          } catch (e) {
+            addLog("getAuthCode: getLocation lỗi (bỏ qua)", e);
+          }
+          for (const scope of scopes) {
+            try {
+              addLog("getAuthCode: authorize scope=" + scope);
+              await authorize(scope);
+              addLog("getAuthCode: authorize OK scope=" + scope);
+            } catch (e) {
+              addLog("getAuthCode: authorize lỗi scope=" + scope + " (bỏ qua)", e);
+            }
+          }
+        };
+
+        await ensureLocationAndConsent();
+
+        const callGetAuthCode = () => apiGetAuthCode(appId, scopes);
+
+        try {
+          addLog("getAuthCode: gọi API getAuthCode appId=" + appId.slice(0, 8) + "...");
+          const result = await callGetAuthCode();
+          return { authCode: result.authCode };
+        } catch (firstErr: unknown) {
+          const firstMsg = String((firstErr as Error)?.message ?? "");
+          const isLocationOrConsentError =
+            /no location permission|No consent data available|consent|HY_FAILED/i.test(firstMsg);
+          if (isLocationOrConsentError) {
+            addLog("getAuthCode: lỗi consent/location, thử lại sau getLocation + authorize...", firstMsg);
+            await ensureLocationAndConsent();
+            addLog("getAuthCode: retry getAuthCode lần 2");
+            try {
+              const result = await callGetAuthCode();
+              return { authCode: result.authCode };
+            } catch (retryErr: unknown) {
+              addLog("getAuthCode: retry vẫn lỗi", retryErr);
+              throw new Error(
+                "Chưa có quyền truy cập. Vui lòng vào Cài đặt Tammi / Mini App → bật quyền Vị trí và quyền lấy Số điện thoại cho ứng dụng này, rồi thử lại."
+              );
+            }
+          }
+          throw firstErr;
         }
-        addLog("getAuthCode: gọi API getAuthCode appId=" + appId.slice(0, 8) + "...");
-        const result = await apiGetAuthCode(appId, scopes);
-        return { authCode: result.authCode };
       })
       .catch((err) => {
         const msg = err?.message ?? "";
