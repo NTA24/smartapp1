@@ -56,9 +56,12 @@ export function onWindVaneReady(): Promise<void> {
   });
 }
 
+/** Một số nền tảng (Tammi) chỉ chấp nhận scope "auth_user" thay vì USER_NAME/USER_PHONE_NUMBER */
+const FALLBACK_SCOPES = ["auth_user"];
+
 /** Đợi WindVane, authorize từng scope (API), rồi gọi API getAuthCode. Retry tối đa 3 lần khi WindVane chưa sẵn sàng. */
-export function getAuthCode(scopes: string[] = [...DEFAULT_SCOPES]): Promise<{ authCode: string }> {
-  const tryOnce = (attempt: number): Promise<{ authCode: string }> =>
+export function getAuthCode(scopes: string[] = [...DEFAULT_SCOPES]): Promise<{ authCode: string; scopes: string[] }> {
+  const tryOnce = (attempt: number): Promise<{ authCode: string; scopes: string[] }> =>
     onWindVaneReady()
       .then(() => {
         if (!isWindVaneReady()) {
@@ -73,55 +76,72 @@ export function getAuthCode(scopes: string[] = [...DEFAULT_SCOPES]): Promise<{ a
         return appId;
       })
       .then(async (appId) => {
+        const API_AUTHORIZE = "WindVane.call('wv','authorize',{scope})";
+        const API_GET_LOCATION = "WindVane.call('WVLocation','getLocation',params)";
         const ensureLocationAndConsent = async () => {
           try {
-            addLog("getAuthCode: authorize location (API)");
+            addLog("[API] authorize — " + API_AUTHORIZE + " scope=location");
             await authorize("location");
-            addLog("getAuthCode: authorize location OK");
+            addLog("[API] authorize OK — " + API_AUTHORIZE);
           } catch (e) {
-            addLog("getAuthCode: authorize location lỗi (bỏ qua)", e);
+            addLog("[API] LỖI authorize — " + API_AUTHORIZE + " | ", e);
           }
           try {
-            addLog("getAuthCode: gọi getLocation (API)");
+            addLog("[API] getLocation — " + API_GET_LOCATION);
             await getLocation({});
-            addLog("getAuthCode: getLocation OK");
+            addLog("[API] getLocation OK — " + API_GET_LOCATION);
           } catch (e) {
-            addLog("getAuthCode: getLocation lỗi (bỏ qua)", e);
+            addLog("[API] LỖI getLocation — " + API_GET_LOCATION + " | ", e);
           }
           for (const scope of scopes) {
             try {
-              addLog("getAuthCode: authorize scope=" + scope);
+              addLog("[API] authorize — " + API_AUTHORIZE + " scope=" + scope);
               await authorize(scope);
-              addLog("getAuthCode: authorize OK scope=" + scope);
+              addLog("[API] authorize OK — " + API_AUTHORIZE);
             } catch (e) {
-              addLog("getAuthCode: authorize lỗi scope=" + scope + " (bỏ qua)", e);
+              addLog("[API] LỖI authorize scope=" + scope + " — " + API_AUTHORIZE + " | ", e);
             }
           }
         };
 
         await ensureLocationAndConsent();
 
-        const callGetAuthCode = () => apiGetAuthCode(appId, scopes);
+        const API_GET_AUTH_CODE = "WindVane.call('wv','getAuthCode',{appId,scopes})";
+        const tryWithScopes = async (scopeList: string[]) => {
+          addLog("[API] getAuthCode — " + API_GET_AUTH_CODE + " appId=" + appId.slice(0, 12) + ".. scopes=" + scopeList.join(","));
+          const result = await apiGetAuthCode(appId, scopeList);
+          addLog("[API] getAuthCode OK — " + API_GET_AUTH_CODE);
+          return { authCode: result.authCode, scopes: scopeList };
+        };
 
         try {
-          addLog("getAuthCode: gọi API getAuthCode appId=" + appId.slice(0, 8) + "...");
-          const result = await callGetAuthCode();
-          return { authCode: result.authCode };
+          return await tryWithScopes(scopes);
         } catch (firstErr: unknown) {
           const firstMsg = String((firstErr as Error)?.message ?? "");
           const isLocationOrConsentError =
             /no location permission|No consent data available|consent|HY_FAILED/i.test(firstMsg);
+
           if (isLocationOrConsentError) {
-            addLog("getAuthCode: lỗi consent/location, thử lại sau getLocation + authorize...", firstMsg);
+            addLog("[API] LỖI getAuthCode — " + API_GET_AUTH_CODE + " | " + firstMsg);
+            addLog("[API] Retry: getLocation + authorize rồi gọi lại getAuthCode...");
             await ensureLocationAndConsent();
-            addLog("getAuthCode: retry getAuthCode lần 2");
             try {
-              const result = await callGetAuthCode();
-              return { authCode: result.authCode };
+              return await tryWithScopes(scopes);
             } catch (retryErr: unknown) {
-              addLog("getAuthCode: retry vẫn lỗi", retryErr);
+              const usedFallback = !scopes.includes("auth_user");
+              if (usedFallback) {
+                addLog("[API] Thử fallback authorize + getAuthCode với scope auth_user");
+                try {
+                  addLog("[API] authorize — " + API_AUTHORIZE + " scope=auth_user");
+                  await authorize("auth_user");
+                  return await tryWithScopes(FALLBACK_SCOPES);
+                } catch (authUserErr: unknown) {
+                  addLog("[API] LỖI getAuthCode (auth_user) — " + API_GET_AUTH_CODE + " | ", authUserErr);
+                }
+              }
+              addLog("[API] LỖI cuối — getAuthCode — " + API_GET_AUTH_CODE + " | ", retryErr);
               throw new Error(
-                "Chưa có quyền truy cập. Vui lòng vào Cài đặt Tammi / Mini App → bật quyền Vị trí và quyền lấy Số điện thoại cho ứng dụng này, rồi thử lại."
+                "Chưa có quyền truy cập (No consent data available). Vui lòng vào Tammi → Cài đặt → Quyền Mini App → bật Vị trí và Số điện thoại cho app này, rồi mở lại và bấm Cho phép."
               );
             }
           }
@@ -135,7 +155,7 @@ export function getAuthCode(scopes: string[] = [...DEFAULT_SCOPES]): Promise<{ a
           addLog("getAuthCode: retry", attempt + 1, "/ 3 —", msg);
           return new Promise<void>((r) => setTimeout(r, 400)).then(() => tryOnce(attempt + 1));
         }
-        addLog("getAuthCode: thất bại —", msg, err);
+        addLog("[API] LỖI getAuthCode (WindVane/retry) — " + msg, err);
         throw err;
       });
 
@@ -155,21 +175,22 @@ export async function loginMiniApp(
   addLog("loginMiniApp: bắt đầu scopes=", scopes.join(","));
   const auth = await getAuthCode(scopes);
   const apiBase = getApiBase();
-  addLog("loginMiniApp: gọi API", apiBase + "/auth/superapp-login");
-  const res = await fetch(`${apiBase}/auth/superapp-login`, {
+  const superappLoginUrl = `${apiBase}/auth/superapp-login`;
+  addLog("[API] superapp-login — POST " + superappLoginUrl + " | scopes=" + auth.scopes.join(","));
+  const res = await fetch(superappLoginUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       authCode: auth.authCode,
-      scopes,
+      scopes: auth.scopes,
       appId: getMiniAppAppId(),
     }),
   });
   const data = (await res.json()) as SuperAppLoginResult;
   if (data?.success) {
-    addLog("loginMiniApp: OK, có số ĐT?", !!getPhoneFromLoginResult(data));
+    addLog("[API] superapp-login OK — " + superappLoginUrl + " | có số ĐT? " + !!getPhoneFromLoginResult(data));
   } else {
-    addLog("loginMiniApp: API lỗi/success=false", data?.error ?? data?.message ?? data);
+    addLog("[API] LỖI superapp-login — " + superappLoginUrl + " | " + (data?.error ?? data?.message ?? JSON.stringify(data)));
   }
   return data;
 }
