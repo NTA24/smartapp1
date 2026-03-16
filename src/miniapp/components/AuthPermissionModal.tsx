@@ -1,12 +1,18 @@
-import React from "react";
+import React, { useState } from "react";
 import { useMiniApp } from "../context/MiniAppContext";
 
 export const AuthPermissionModal: React.FC = () => {
   const { authModalVisible, setAuthModalVisible, requestAuthAndPhone } = useMiniApp();
+  const [loading, setLoading] = useState(false);
 
-  const handleAllow = () => {
-    setAuthModalVisible(false);
-    requestAuthAndPhone();
+  const handleAllow = async () => {
+    setLoading(true);
+    try {
+      await requestAuthAndPhone();
+    } finally {
+      setLoading(false);
+      setAuthModalVisible(false);
+    }
   };
 
   if (!authModalVisible) return null;
@@ -62,8 +68,9 @@ export const AuthPermissionModal: React.FC = () => {
             type="button"
             className="auth-permission-btn auth-permission-allow"
             onClick={handleAllow}
+            disabled={loading}
           >
-            Cho phép
+            {loading ? "Đang xác thực..." : "Cho phép"}
           </button>
         </div>
       </div>

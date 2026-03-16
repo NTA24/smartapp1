@@ -43,15 +43,27 @@ export function MiniAppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const requestAuthAndPhone = useCallback(async () => {
-    addLog("requestAuthAndPhone: bấm Cho phép → gọi loginMiniApp");
+    addLog("requestAuthAndPhone: gọi loginMiniApp");
     try {
       const data = await loginMiniApp();
       const phone = getPhoneFromLoginResult(data);
       if (phone) {
-        addLog("requestAuthAndPhone: OK, đã lưu số ĐT");
+        addLog("requestAuthAndPhone: OK, số ĐT=", phone);
         setUserPhone(phone);
       } else {
         addLog("requestAuthAndPhone: không có số ĐT trong data", data);
+      }
+      // Author: đồng bộ trạng thái quyền sau khi auth xong
+      const P = window.MiniAppPermissions;
+      if (P?.getSetting) {
+        const settings = await P.getSetting().catch((e) => {
+          addLog("requestAuthAndPhone: getSetting lỗi", e);
+          return null;
+        });
+        if (settings?.authSetting && P.setPermissionStatus) {
+          P.setPermissionStatus(settings.authSetting);
+          addLog("requestAuthAndPhone: đã đồng bộ quyền thiết bị");
+        }
       }
     } catch (e) {
       addLog("requestAuthAndPhone: lỗi", e);
@@ -63,58 +75,37 @@ export function MiniAppProvider({ children }: { children: React.ReactNode }) {
     setState((s) => ({ ...s, appId: getMiniAppAppId() }));
   }, []);
 
-  // Khi mở từ super app: đợi WindVane → đảm bảo appId → gọi auth (getAuthCode + superapp-login) và author (getSetting)
+  // Khi mở app: đợi WindVane rồi quyết định hiện/ẩn modal
+  // Không tự gọi auth ở đây — auth được gọi khi user bấm "Cho phép" trên modal
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    addLog("useEffect: bắt đầu đợi WindVane và auth khi mở app");
+    addLog("useEffect: mở app, đợi WindVane để xác định môi trường");
     let cancelled = false;
     (async () => {
-      try {
-        await onWindVaneReady();
-        if (cancelled) return;
-        if (!window.WindVane?.call) {
-          addLog("useEffect: không có WindVane → ẩn modal auth");
-          setState((s) => ({ ...s, authModalVisible: false }));
-          return;
-        }
-        addLog("useEffect: có WindVane → tiếp tục auth");
+      await onWindVaneReady();
+      if (cancelled) return;
 
-        // Đảm bảo appId dùng 1512032299590111735808 khi chưa có
-        const current = getMiniAppAppId();
-        if (!current || current.trim() === "") {
-          saveAppId(DEFAULT_MINIAPP_APP_ID);
-          setState((s) => ({ ...s, appId: DEFAULT_MINIAPP_APP_ID }));
-        }
-
-        // Auth: getAuthCode + superapp-login để lấy thông tin user (số ĐT, v.v.)
-        const data = await loginMiniApp();
-        if (cancelled) return;
-        const phone = getPhoneFromLoginResult(data);
-        if (phone) {
-          addLog("useEffect: auth OK, số ĐT đã lưu");
-          setUserPhone(phone);
-        } else {
-          addLog("useEffect: auth xong nhưng không có số ĐT", data);
-        }
-
-        // Author: đồng bộ trạng thái quyền thiết bị (getSetting)
-        const P = window.MiniAppPermissions;
-        if (P?.getSetting) {
-          const settings = await P.getSetting().catch((e) => {
-            addLog("useEffect: getSetting lỗi", e);
-            return null;
-          });
-          if (!cancelled && settings?.authSetting && P.setPermissionStatus) {
-            P.setPermissionStatus(settings.authSetting);
-          }
-        }
-      } catch (e) {
-        addLog("useEffect: lỗi auth/author", e);
+      if (!window.WindVane?.call) {
+        // Không chạy trong super app → ẩn modal (không cần auth)
+        addLog("useEffect: không có WindVane → ẩn modal, bỏ qua auth");
+        setState((s) => ({ ...s, authModalVisible: false }));
+        return;
       }
+
+      // Có WindVane → đảm bảo appId và hiện modal để user bấm "Cho phép"
+      addLog("useEffect: có WindVane → chuẩn bị modal auth");
+      const current = getMiniAppAppId();
+      if (!current || current.trim() === "") {
+        saveAppId(DEFAULT_MINIAPP_APP_ID);
+        setState((s) => ({ ...s, appId: DEFAULT_MINIAPP_APP_ID }));
+      }
+      // Modal đã visible = true từ initialState → hiện luôn
+      addLog("useEffect: modal auth đang hiện, chờ user bấm Cho phép");
     })();
     return () => { cancelled = true; };
-  }, [setUserPhone]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const value: MiniAppContextValue = {
     ...state,
