@@ -1,7 +1,6 @@
 import { getApiBase, getMiniAppAppId, DEFAULT_SCOPES } from "../lib/config";
 import { addLog } from "../lib/debugLog";
 
-const LOG = "[MiniApp]";
 const WV_READY_TIMEOUT_MS = 12000; // Đợi tối đa 12s (CDN load + super app inject)
 const WV_POLL_INTERVAL_MS = 150;  // Kiểm tra mỗi 150ms
 
@@ -18,11 +17,9 @@ export function onWindVaneReady(): Promise<void> {
 
     addLog("onWindVaneReady: đợi event + poll", WV_POLL_INTERVAL_MS + "ms, timeout", WV_READY_TIMEOUT_MS + "ms");
     let done = false;
-    let finishedBy = "";
     const finish = (by: string) => {
       if (done) return;
       done = true;
-      finishedBy = by;
       addLog("onWindVaneReady: kết thúc —", by, "| WindVane?", !!window.WindVane, "| .call?", typeof window.WindVane?.call);
       resolve();
     };
