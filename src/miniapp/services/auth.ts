@@ -2,6 +2,7 @@ import { getApiBase, getMiniAppAppId, DEFAULT_SCOPES } from "../lib/config";
 import { addLog } from "../lib/debugLog";
 import { getAuthCode as apiGetAuthCode } from "../../api/authentication/getAuthCode";
 import { authorize } from "../../api/permissions/authorize";
+import { getLocation } from "../../api/location/getLocation";
 
 const WV_READY_TIMEOUT_MS = 12000; // Đợi tối đa 12s (CDN load + super app inject)
 const WV_POLL_INTERVAL_MS = 150;  // Kiểm tra mỗi 150ms
@@ -72,6 +73,22 @@ export function getAuthCode(scopes: string[] = [...DEFAULT_SCOPES]): Promise<{ a
         return appId;
       })
       .then(async (appId) => {
+        // Nền tảng (Tammi) có thể yêu cầu location permission trước khi cho auth code — dùng API authorize + getLocation
+        try {
+          addLog("getAuthCode: authorize location (API)");
+          await authorize("location");
+          addLog("getAuthCode: authorize location OK");
+        } catch (e) {
+          addLog("getAuthCode: authorize location lỗi (bỏ qua)", e);
+        }
+        try {
+          addLog("getAuthCode: gọi getLocation (API) để đảm bảo consent location");
+          await getLocation({});
+          addLog("getAuthCode: getLocation OK");
+        } catch (e) {
+          addLog("getAuthCode: getLocation lỗi (bỏ qua)", e);
+        }
+
         for (const scope of scopes) {
           try {
             addLog("getAuthCode: authorize scope=" + scope);
