@@ -53,9 +53,41 @@ export function onWindVaneReady(): Promise<void> {
   });
 }
 
+// Authorize từng user-info scope với WindVane trước khi getAuthCode
+function authorizeScopes(scopes: string[]): Promise<void> {
+  return new Promise((resolve) => {
+    if (!isWindVaneReady()) {
+      addLog("authorizeScopes: WindVane chưa sẵn sàng, bỏ qua authorize");
+      return resolve();
+    }
+    let remaining = scopes.length;
+    if (remaining === 0) return resolve();
+
+    scopes.forEach((scope) => {
+      addLog("authorizeScopes: authorize scope=" + scope);
+      window.WindVane!.call(
+        "wv",
+        "authorize",
+        { scope },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (res: any) => {
+          addLog("authorizeScopes: OK scope=" + scope, res);
+          if (--remaining === 0) resolve();
+        },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (err: any) => {
+          // Không throw — scope có thể đã được authorize trước đó
+          addLog("authorizeScopes: lỗi scope=" + scope + " (bỏ qua)", err);
+          if (--remaining === 0) resolve();
+        }
+      );
+    });
+  });
+}
+
 function getAuthCodeOnce(scopes: string[]): Promise<{ authCode: string }> {
   return onWindVaneReady()
-    .then(() => new Promise<void>((r) => setTimeout(r, 100)))
+    .then(() => authorizeScopes(scopes))
     .then(
       () =>
         new Promise((resolve, reject) => {
