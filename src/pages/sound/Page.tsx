@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { FiVolume2 } from "react-icons/fi";
+import { SoundOutlined } from "@ant-design/icons";
 import { beep } from "../../api/sound/beep";
 import { useApiCall } from "../../hooks/useApiCall";
 import { StatusMessage } from "../../components/common/StatusMessage";
@@ -30,7 +30,7 @@ export const SoundPage: React.FC = () => {
       {/* Beep Component */}
       <div className="bg-white rounded-lg shadow-md p-6 mb-6">
         <h2 className="text-xl font-semibold text-gray-900 mb-2 flex items-center">
-          <FiVolume2 className="mr-2 text-orange-600" />
+          <SoundOutlined className="mr-2 text-orange-600" />
           Beep Notification
         </h2>
 

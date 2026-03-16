@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { FiPhone, FiLock } from "react-icons/fi";
 import { dial } from "../../api/call/dial";
 import { call } from "../../api/call/call";
-import { authorize, PermissionScope } from "../../api/permissions/authorize";
+import { authorize } from "../../api/permissions/authorize";
 import { useApiCall } from "../../hooks/useApiCall";
 import { StatusMessage } from "../../components/common/StatusMessage";
 

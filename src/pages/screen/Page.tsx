@@ -1,10 +1,8 @@
 import React, { useState } from "react";
 import { FiMonitor, FiRotateCw, FiCamera, FiLock } from "react-icons/fi";
 import { getOrientation } from "../../api/screen/getOrientation";
-import {
-  setOrientation,
-  OrientationType,
-} from "../../api/screen/setOrientation";
+import { setOrientation } from "../../api/screen/setOrientation";
+import type { OrientationType } from "../../api/screen/setOrientation";
 import {
   getScreenBrightness,
   setScreenBrightness,

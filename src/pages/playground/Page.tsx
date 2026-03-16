@@ -401,7 +401,7 @@ export const PlaygroundPage: React.FC = () => {
               height="350px"
               defaultLanguage="typescript"
               value={code}
-              onChange={(value) => setCode(value || "")}
+              onChange={(value: string | undefined) => setCode(value ?? "")}
               onMount={handleEditorDidMount}
               theme="vs-dark"
               options={{

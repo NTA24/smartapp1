@@ -1,9 +1,7 @@
 import React, { useState } from "react";
 import { FiWifi } from "react-icons/fi";
-import {
-  getNetworkType,
-  NetworkTypeResult,
-} from "../../api/network/getNetworkType";
+import { getNetworkType } from "../../api/network/getNetworkType";
+import type { NetworkTypeResult } from "../../api/network/getNetworkType";
 import { useApiCall } from "../../hooks/useApiCall";
 import { StatusMessage } from "../../components/common/StatusMessage";
 

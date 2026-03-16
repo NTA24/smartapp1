@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { FiLock } from "react-icons/fi";
-import { authorize, PermissionScope } from "../../api/permissions/authorize";
+import { authorize } from "../../api/permissions/authorize";
+import type { PermissionScope } from "../../api/permissions/authorize";
 import { useApiCall } from "../../hooks/useApiCall";
 import { StatusMessage } from "../../components/common/StatusMessage";
 import { ImageComponent } from "./ImageComponent";

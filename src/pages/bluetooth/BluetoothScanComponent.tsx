@@ -14,7 +14,7 @@ interface BluetoothDevice {
 export const BluetoothScanComponent: React.FC = () => {
   const [devices, setDevices] = useState<BluetoothDevice[]>([]);
   const [isScanning, setIsScanning] = useState(false);
-  const { run, feedback, showFeedback, loading } = useApiCall();
+  const { run, feedback, loading } = useApiCall();
 
   useEffect(() => {
     const handleDeviceDiscovered = (e: any) => {

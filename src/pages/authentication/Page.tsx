@@ -1,8 +1,6 @@
 import React, { useMemo, useState } from "react";
-import {
-  getAuthCode,
-  AuthCodeResponse,
-} from "../../api/authentication/getAuthCode";
+import { getAuthCode } from "../../api/authentication/getAuthCode";
+import type { AuthCodeResponse } from "../../api/authentication/getAuthCode";
 import { clearAuthCache } from "../../api/viettel/dev/clearAuthCache";
 import { copyToClipboard } from "../../api/base/copyToClipboard";
 import { useApiCall } from "../../hooks/useApiCall";
@@ -91,8 +89,8 @@ const AVAILABLE_SCOPES = [
 ];
 
 export const SSOPage: React.FC = () => {
-  const [appId, setAppId] = useState(
-    process.env.REACT_APP_APP_ID ?? "1512032299590111735808"
+  const [appId, setAppId] = useState<string>(
+    (() => { const v = typeof import.meta.env !== "undefined" ? (import.meta.env as Record<string, unknown>).VITE_APP_ID : undefined; return (v !== undefined && v !== false ? String(v) : "").trim() || "1512032299590111735808"; })()
   );
   const [selectedScopes, setSelectedScopes] = useState(["auth_user"]);
   const [authResponse, setAuthResponse] = useState<AuthCodeResponse | null>(

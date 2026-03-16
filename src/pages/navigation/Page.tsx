@@ -5,8 +5,8 @@ import { useApiCall } from "../../hooks/useApiCall";
 import { StatusMessage } from "../../components/common/StatusMessage";
 
 export const NavigationPage: React.FC = () => {
-  const [appId, setAppId] = useState(
-    process.env.REACT_APP_APP_ID ?? "1512032299590111735808"
+  const [appId, setAppId] = useState<string>(
+    (() => { const v = typeof import.meta.env !== "undefined" ? (import.meta.env as Record<string, unknown>).VITE_APP_ID : undefined; return (v !== undefined && v !== false ? String(v) : "").trim() || "1512032299590111735808"; })()
   );
   const [path, setPath] = useState("");
   const [extraDataKey, setExtraDataKey] = useState("source");

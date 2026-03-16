@@ -1,6 +1,8 @@
 import React, { useState } from "react";
-import { getSetting, AuthSetting } from "../../api/permissions/getSetting";
-import { authorize, PermissionScope } from "../../api/permissions/authorize";
+import { getSetting } from "../../api/permissions/getSetting";
+import type { AuthSetting } from "../../api/permissions/getSetting";
+import { authorize } from "../../api/permissions/authorize";
+import type { PermissionScope } from "../../api/permissions/authorize";
 import { 
   FiLock, 
   FiCamera, 

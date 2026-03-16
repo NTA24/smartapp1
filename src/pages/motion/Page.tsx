@@ -24,7 +24,7 @@ export const MotionPage: React.FC = () => {
   const [accelerometerData, setAccelerometerData] = useState("");
   const [compassActive, setCompassActive] = useState(false);
   const [compassData, setCompassData] = useState("");
-  const { run, feedback, showFeedback, loading } = useApiCall();
+  const { run, feedback, loading } = useApiCall();
 
   useEffect(() => {
     const handleBlow = (e: any) => {
