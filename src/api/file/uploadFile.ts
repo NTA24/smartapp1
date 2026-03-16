@@ -28,6 +28,7 @@ export const uploadFile = (
       "uploadFile",
       params,
       (result: UploadFileResult) => resolve(result),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (error: any) => {
         reject(
           new Error(

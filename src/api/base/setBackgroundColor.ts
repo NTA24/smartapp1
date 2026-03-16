@@ -23,6 +23,7 @@ export const setBackgroundColor = (
       () => {
         resolve();
       },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (error: any) => {
         reject(
           new Error(JSON.stringify(error) || "Failed to set background color")

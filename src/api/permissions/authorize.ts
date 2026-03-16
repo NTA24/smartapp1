@@ -61,6 +61,7 @@ export const authorize = async (
       (result: AuthorizeResult) => {
         resolve(result);
       },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       async (error: any) => {
         if (await hasPermission(scope)) {
           resolve(buildSuccessResult(scope, "Permission already granted"));

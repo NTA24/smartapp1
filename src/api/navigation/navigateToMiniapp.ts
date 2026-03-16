@@ -29,6 +29,7 @@ export const navigateToMiniapp = (
       () => {
         resolve();
       },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (error: any) => {
         reject(
           new Error(

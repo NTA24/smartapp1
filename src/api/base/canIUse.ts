@@ -18,6 +18,7 @@ export const canIUse = (params: CanIUseParams): Promise<boolean> => {
       "WVBase",
       "canIUse",
       params,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (result: any) => {
         console.log("canIUse success result:", result);
         // Handle different possible response formats
@@ -31,6 +32,7 @@ export const canIUse = (params: CanIUseParams): Promise<boolean> => {
           resolve(false);
         }
       },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (error: any) => {
         console.error("canIUse error:", error);
         reject(

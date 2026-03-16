@@ -24,6 +24,7 @@ export const setScreenBrightness = (
       "setScreenBrightness",
       params,
       () => resolve(),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (error: any) => {
         reject(
           new Error(
@@ -53,6 +54,7 @@ export const getScreenBrightness = (): Promise<BrightnessResult> => {
       "getScreenBrightness",
       {},
       (result: BrightnessResult) => resolve(result),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (error: any) => {
         reject(
           new Error(

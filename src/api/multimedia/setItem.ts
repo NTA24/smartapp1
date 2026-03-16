@@ -16,6 +16,7 @@ export const setItem = (key: string, value: string): Promise<void> => {
       () => {
         resolve();
       },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (error: any) => {
         reject(
           new Error(error?.msg || JSON.stringify(error) || "Failed to set item")

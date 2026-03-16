@@ -26,6 +26,7 @@ export const scan = (params: ScanParams = {}): Promise<void> => {
       () => {
         resolve();
       },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (error: any) => {
         reject(
           new Error(error?.msg || JSON.stringify(error) || "Failed to scan")

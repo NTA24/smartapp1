@@ -16,6 +16,7 @@ export const getItem = (key: string): Promise<string> => {
       (result: { data: string }) => {
         resolve(result.data);
       },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (error: any) => {
         reject(
           new Error(error?.msg || JSON.stringify(error) || "Failed to get item")

@@ -44,6 +44,7 @@ export const isSimulator = (): Promise<IsSimulatorResult> => {
       "isSimulator",
       {},
       (result: IsSimulatorResult) => resolve(result),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (error: any) => {
         reject(
           new Error(
@@ -71,6 +72,7 @@ export const getCurrentUsage = (): Promise<CurrentUsageResult> => {
       "getCurrentUsage",
       {},
       (result: CurrentUsageResult) => resolve(result),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (error: any) => {
         reject(
           new Error(
@@ -98,6 +100,7 @@ export const getDeviceYear = (): Promise<DeviceYearResult> => {
       "getDeviceYear",
       {},
       (result: DeviceYearResult) => resolve(result),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (error: any) => {
         reject(
           new Error(
@@ -125,6 +128,7 @@ export const getModelInfo = (): Promise<ModelInfoResult> => {
       "getModelInfo",
       {},
       (result: ModelInfoResult) => resolve(result),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (error: any) => {
         reject(
           new Error(
@@ -152,6 +156,7 @@ export const getSafeAreaInsets = (): Promise<SafeAreaInsetsResult> => {
       "getSafeAreaInsets",
       {},
       (result: SafeAreaInsetsResult) => resolve(result),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (error: any) => {
         reject(
           new Error(

@@ -31,6 +31,7 @@ export const getSystemInfo = (): Promise<SystemInfo> => {
       (result: SystemInfo) => {
         resolve(result);
       },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (error: any) => {
         reject(
           new Error(
@@ -60,6 +61,7 @@ export const getSystemInfoSync = (): Promise<SystemInfo> => {
       (result: SystemInfo) => {
         resolve(result);
       },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (error: any) => {
         reject(
           new Error(

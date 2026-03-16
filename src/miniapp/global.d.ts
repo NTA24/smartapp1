@@ -15,10 +15,12 @@ declare module "react" {
 declare global {
   interface Window {
     WindVane?: {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       call: (module: string, method: string, params: unknown, onSuccess?: (res: any) => void, onFail?: (err: any) => void) => void;
     };
     JSBridge?: {
-      send: (path: string, data: unknown, callback?: (res: unknown) => void) => void;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      send: (path: string, data: unknown, callback?: (res: any) => void) => void;
     };
     MiniAppPermissions?: {
       getSetting: () => Promise<{ authSetting: Record<string, boolean> }>;

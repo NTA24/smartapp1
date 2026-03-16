@@ -75,7 +75,8 @@ function getAuthCodeOnce(scopes: string[]): Promise<{ authCode: string }> {
             "wv",
             "getAuthCode",
             { appId, scopes },
-            (res: unknown) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (res: any) => {
               const r = res as { authCode?: string };
               if (!r?.authCode) {
                 addLog("getAuthCodeOnce: response không có authCode", r);
@@ -85,7 +86,8 @@ function getAuthCodeOnce(scopes: string[]): Promise<{ authCode: string }> {
                 resolve({ authCode: r.authCode });
               }
             },
-            (err: unknown) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (err: any) => {
               addLog("getAuthCodeOnce: WindVane callback lỗi", err);
               reject(err ?? new Error("getAuthCode fail"));
             }

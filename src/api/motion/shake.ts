@@ -21,6 +21,7 @@ export const listeningShake = (params: ListeningShakeParams): Promise<void> => {
       "listeningShake",
       params,
       () => resolve(),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (error: any) => {
         reject(
           new Error(

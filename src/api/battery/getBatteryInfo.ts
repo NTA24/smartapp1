@@ -22,6 +22,7 @@ export const getBatteryInfo = (): Promise<BatteryInfo> => {
       (result: BatteryInfo) => {
         resolve(result);
       },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (error: any) => {
         reject(
           new Error(

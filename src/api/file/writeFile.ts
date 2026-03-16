@@ -21,6 +21,7 @@ export const writeFile = (params: WriteFileParams): Promise<void> => {
       "write",
       params,
       () => resolve(),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (error: any) => {
         reject(
           new Error(

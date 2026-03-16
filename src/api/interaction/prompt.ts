@@ -37,6 +37,7 @@ export const prompt = (params: PromptParams): Promise<PromptResult> => {
       (result: PromptResult) => {
         resolve(result);
       },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (error: any) => {
         reject(new Error(JSON.stringify(error) || "Failed to show prompt"));
       }

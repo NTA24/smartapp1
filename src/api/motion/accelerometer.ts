@@ -20,6 +20,7 @@ export const startAccelerometer = (
       "startAccelerometer",
       params,
       () => resolve(),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (error: any) => {
         reject(
           new Error(

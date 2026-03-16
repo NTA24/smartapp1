@@ -20,6 +20,7 @@ export const appState = (): Promise<AppStateResult> => {
       (result: AppStateResult) => {
         resolve(result);
       },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (error: any) => {
         reject(
           new Error(

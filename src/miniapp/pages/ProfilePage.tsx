@@ -55,7 +55,8 @@ export const ProfilePage: React.FC = () => {
         setCheckResult("Backend OK nhưng không có số. Chi tiết: " + JSON.stringify(data?.data ?? {}).slice(0, 300));
         setCheckError(true);
       }
-    } catch (err: unknown) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (err: any) {
       const msg = err instanceof Error ? err.message : String(err);
       const friendlyMsg = /windvane|chưa sẵn sàng/i.test(msg)
         ? "Vui lòng mở app từ Super App (Tammi) để lấy số điện thoại."

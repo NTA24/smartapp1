@@ -20,6 +20,7 @@ export const openBrowser = (url: string): Promise<void> => {
       () => {
         resolve();
       },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (error: any) => {
         reject(new Error(JSON.stringify(error) || "Failed to open browser"));
       }

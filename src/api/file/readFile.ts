@@ -23,6 +23,7 @@ export const readFile = (params: ReadFileParams): Promise<ReadFileResult> => {
       "read",
       params,
       (result: ReadFileResult) => resolve(result),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (error: any) => {
         reject(
           new Error(

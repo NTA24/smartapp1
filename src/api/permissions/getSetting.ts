@@ -33,6 +33,7 @@ export const getSetting = (): Promise<GetSettingResult> => {
       (result: GetSettingResult) => {
         resolve(result);
       },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (error: any) => {
         reject(new Error(JSON.stringify(error) || "Failed to get settings"));
       }

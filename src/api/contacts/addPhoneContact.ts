@@ -33,6 +33,7 @@ export const addPhoneContact = (
       () => {
         resolve();
       },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (error: any) => {
         reject(
           new Error(

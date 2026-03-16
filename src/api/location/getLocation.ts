@@ -43,6 +43,7 @@ export const getLocation = (
       (result: GetLocationResult) => {
         resolve(result);
       },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (error: any) => {
         reject(
           new Error(
