@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { IconifyIcon } from "../components/IconifyIcon";
+import { LeftOutlined } from "@ant-design/icons";
 
 interface PlaceholderPageProps {
   title: string;
@@ -13,7 +13,7 @@ export const PlaceholderPage: React.FC<PlaceholderPageProps> = ({ title, backTo,
     <div className="sub-page-header">
       <Link to={backTo} className="back btn-back">
         <span className="btn-back-arrow">
-          <IconifyIcon icon="ant-design:left-outlined" />
+          <LeftOutlined />
         </span>
       </Link>
       <h1 className="sub-page-title">{title}</h1>

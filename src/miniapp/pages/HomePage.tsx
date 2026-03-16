@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
+import { CloudOutlined, BulbOutlined, MenuOutlined, SettingOutlined, SearchOutlined } from "@ant-design/icons";
 import { DeviceCard } from "../components/DeviceCard";
-import { IconifyIcon } from "../components/IconifyIcon";
 
 export const HomePage: React.FC = () => {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -19,7 +19,7 @@ export const HomePage: React.FC = () => {
           aria-label="Menu"
           onClick={() => setMenuOpen(true)}
         >
-          <IconifyIcon icon="ant-design:menu-outlined" />
+          <MenuOutlined />
         </button>
       </div>
       <div
@@ -32,11 +32,11 @@ export const HomePage: React.FC = () => {
         <Link to="/shared" className="menu-item" onClick={() => setMenuOpen(false)}>Đã chia sẻ</Link>
         <Link to="/nav-settings" className="menu-item" onClick={() => setMenuOpen(false)}>
           <span>Cài đặt điều hướng</span>
-          <span className="menu-icon"><IconifyIcon icon="ant-design:setting-outlined" /></span>
+          <span className="menu-icon"><SettingOutlined /></span>
         </Link>
         <Link to="/my-devices" className="menu-item" onClick={() => setMenuOpen(false)}>
           <span>Thiết bị của tôi</span>
-          <span className="menu-icon"><IconifyIcon icon="ant-design:search-outlined" /></span>
+          <span className="menu-icon"><SearchOutlined /></span>
         </Link>
       </div>
       <div
@@ -51,7 +51,7 @@ export const HomePage: React.FC = () => {
           name="Máy lọc không khí thông minh"
           meta="Thiết bị"
           statusLabel="Trung bình"
-          icon="ant-design:cloud-outlined"
+          icon={<CloudOutlined />}
           defaultOn={true}
         />
         <DeviceCard
@@ -59,7 +59,7 @@ export const HomePage: React.FC = () => {
           name="Đèn thông minh"
           meta="Thiết bị"
           statusLabel="Tắt"
-          icon="ant-design:bulb-outlined"
+          icon={<BulbOutlined />}
           defaultOn={false}
         />
       </div>

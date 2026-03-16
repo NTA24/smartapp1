@@ -4,9 +4,9 @@ import { useMiniApp } from "../context/MiniAppContext";
 export const AuthPermissionModal: React.FC = () => {
   const { authModalVisible, setAuthModalVisible, requestAuthAndPhone } = useMiniApp();
 
-  const handleAllow = async () => {
-    await requestAuthAndPhone();
+  const handleAllow = () => {
     setAuthModalVisible(false);
+    requestAuthAndPhone();
   };
 
   if (!authModalVisible) return null;

@@ -3,8 +3,8 @@ import { Link } from "react-router-dom";
 import { useMiniApp } from "../context/MiniAppContext";
 import { storeGet } from "../lib/store";
 import { STORAGE_KEY_APP_ID } from "../lib/config";
-import { loginMiniApp, getPhoneFromLoginResult } from "../services/auth";
-import { IconifyIcon } from "../components/IconifyIcon";
+import { loginMiniApp, getPhoneFromLoginResult, isWindVaneReady } from "../services/auth";
+import { PlusOutlined, UserOutlined, AudioOutlined, DesktopOutlined, AppstoreOutlined, SettingOutlined, MessageOutlined } from "@ant-design/icons";
 
 export const ProfilePage: React.FC = () => {
   const { userPhone, setUserPhone, appId, saveAppId } = useMiniApp();
@@ -38,7 +38,12 @@ export const ProfilePage: React.FC = () => {
   };
 
   const handleCheckApi = async () => {
-    setCheckResult("Đang đợi WindVane...");
+    if (!isWindVaneReady()) {
+      setCheckResult("Vui lòng mở app từ Super App (Tammi) để lấy số điện thoại.");
+      setCheckError(true);
+      return;
+    }
+    setCheckResult("Đang kiểm tra...");
     setCheckError(false);
     try {
       const data = await loginMiniApp();
@@ -52,7 +57,10 @@ export const ProfilePage: React.FC = () => {
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      setCheckResult("Lỗi: " + msg);
+      const friendlyMsg = /windvane|chưa sẵn sàng/i.test(msg)
+        ? "Vui lòng mở app từ Super App (Tammi) để lấy số điện thoại."
+        : msg;
+      setCheckResult("Lỗi: " + friendlyMsg);
       setCheckError(true);
     }
   };
@@ -139,36 +147,36 @@ export const ProfilePage: React.FC = () => {
         <div className="card-desc">Thành viên trong gia đình(1)</div>
         <div className="card-actions">
           <button type="button" className="icon-btn" aria-label="Thêm thành viên">
-            <IconifyIcon icon="ant-design:plus-outlined" />
+            <PlusOutlined />
           </button>
           <Link to="/account" className="icon-btn" aria-label="Quản lý gia đình">
-            <IconifyIcon icon="ant-design:user-outlined" />
+            <UserOutlined />
           </Link>
         </div>
       </div>
       <Link to="/voice" className="list-item">
-        <div className="list-icon blue"><IconifyIcon icon="ant-design:audio-outlined" /></div>
+        <div className="list-icon blue"><AudioOutlined /></div>
         <span className="list-text">Trợ lý thoại</span>
         <span className="list-arrow">›</span>
       </Link>
       <Link to="/devices" className="list-item">
-        <div className="list-icon green"><IconifyIcon icon="ant-design:desktop-outlined" /></div>
+        <div className="list-icon green"><DesktopOutlined /></div>
         <span className="list-text">Quản lý nhiều thiết bị</span>
         <span className="list-arrow">›</span>
       </Link>
       <Link to="/hub" className="list-item">
-        <div className="list-icon green"><IconifyIcon icon="ant-design:appstore-outlined" /></div>
+        <div className="list-icon green"><AppstoreOutlined /></div>
         <span className="list-text">Hub & cổng</span>
         <span className="list-arrow">›</span>
       </Link>
       <Link to="/settings" className="list-item">
-        <div className="list-icon gray"><IconifyIcon icon="ant-design:setting-outlined" /></div>
+        <div className="list-icon gray"><SettingOutlined /></div>
         <span className="list-text">Cài đặt khác</span>
         <span className="list-arrow">›</span>
       </Link>
       <div className="card-block" style={{ marginTop: 16 }}>
         <Link to="/help" className="list-item" style={{ paddingLeft: 0 }}>
-          <div className="list-icon blue"><IconifyIcon icon="ant-design:message-outlined" /></div>
+          <div className="list-icon blue"><MessageOutlined /></div>
           <span className="list-text">Trợ giúp và phản hồi</span>
           <span className="list-arrow">›</span>
         </Link>

@@ -1,12 +1,12 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { IconifyIcon } from "./IconifyIcon";
+import { HomeOutlined, ThunderboltOutlined, ShoppingCartOutlined, UserOutlined } from "@ant-design/icons";
 
 const NAV_ITEMS = [
-  { path: "/", page: "home", label: "Smart Home", icon: "ant-design:home-outlined" },
-  { path: "/automation", page: "automation", label: "Tự động", icon: "ant-design:thunderbolt-outlined" },
-  { path: "/store", page: "store", label: "Cửa hàng", icon: "ant-design:shopping-cart-outlined" },
-  { path: "/profile", page: "profile", label: "Hồ sơ", icon: "ant-design:user-outlined" },
+  { path: "/", page: "home", label: "Smart Home", icon: HomeOutlined },
+  { path: "/automation", page: "automation", label: "Tự động", icon: ThunderboltOutlined },
+  { path: "/store", page: "store", label: "Cửa hàng", icon: ShoppingCartOutlined },
+  { path: "/profile", page: "profile", label: "Hồ sơ", icon: UserOutlined },
 ];
 
 export const BottomNav: React.FC = () => {
@@ -16,7 +16,7 @@ export const BottomNav: React.FC = () => {
 
   return (
     <nav className="bottom-nav">
-      {NAV_ITEMS.map(({ path, page, label, icon }) => (
+      {NAV_ITEMS.map(({ path, page, label, icon: Icon }) => (
         <Link
           key={page}
           to={path}
@@ -24,7 +24,7 @@ export const BottomNav: React.FC = () => {
           data-page={page}
         >
           <span className="nav-icon">
-            <IconifyIcon icon={icon} />
+            <Icon />
           </span>
           <span className="nav-label">{label}</span>
         </Link>

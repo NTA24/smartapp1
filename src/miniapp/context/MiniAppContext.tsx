@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useState } fr
 import { getMiniAppAppId, getApiBase, saveAppId, STORAGE_KEY_APP_ID, DEFAULT_MINIAPP_APP_ID } from "../lib/config";
 import { storeGet } from "../lib/store";
 import { loginMiniApp, getPhoneFromLoginResult, onWindVaneReady } from "../services/auth";
+import { addLog } from "../lib/debugLog";
 
 interface MiniAppState {
   userPhone: string;
@@ -42,12 +43,18 @@ export function MiniAppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const requestAuthAndPhone = useCallback(async () => {
+    addLog("requestAuthAndPhone: bấm Cho phép → gọi loginMiniApp");
     try {
       const data = await loginMiniApp();
       const phone = getPhoneFromLoginResult(data);
-      if (phone) setUserPhone(phone);
-    } catch {
-      // ignore
+      if (phone) {
+        addLog("requestAuthAndPhone: OK, đã lưu số ĐT");
+        setUserPhone(phone);
+      } else {
+        addLog("requestAuthAndPhone: không có số ĐT trong data", data);
+      }
+    } catch (e) {
+      addLog("requestAuthAndPhone: lỗi", e);
     }
   }, [setUserPhone]);
 
@@ -60,12 +67,18 @@ export function MiniAppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
+    addLog("useEffect: bắt đầu đợi WindVane và auth khi mở app");
     let cancelled = false;
     (async () => {
       try {
         await onWindVaneReady();
         if (cancelled) return;
-        if (!window.WindVane?.call) return; // Không chạy trong super app → bỏ qua
+        if (!window.WindVane?.call) {
+          addLog("useEffect: không có WindVane → ẩn modal auth");
+          setState((s) => ({ ...s, authModalVisible: false }));
+          return;
+        }
+        addLog("useEffect: có WindVane → tiếp tục auth");
 
         // Đảm bảo appId dùng 1512032299590111735808 khi chưa có
         const current = getMiniAppAppId();
@@ -78,18 +91,26 @@ export function MiniAppProvider({ children }: { children: React.ReactNode }) {
         const data = await loginMiniApp();
         if (cancelled) return;
         const phone = getPhoneFromLoginResult(data);
-        if (phone) setUserPhone(phone);
+        if (phone) {
+          addLog("useEffect: auth OK, số ĐT đã lưu");
+          setUserPhone(phone);
+        } else {
+          addLog("useEffect: auth xong nhưng không có số ĐT", data);
+        }
 
         // Author: đồng bộ trạng thái quyền thiết bị (getSetting)
         const P = window.MiniAppPermissions;
         if (P?.getSetting) {
-          const settings = await P.getSetting().catch(() => null);
+          const settings = await P.getSetting().catch((e) => {
+            addLog("useEffect: getSetting lỗi", e);
+            return null;
+          });
           if (!cancelled && settings?.authSetting && P.setPermissionStatus) {
             P.setPermissionStatus(settings.authSetting);
           }
         }
-      } catch {
-        // User hủy / không có WindVane / mạng lỗi → bỏ qua
+      } catch (e) {
+        addLog("useEffect: lỗi auth/author", e);
       }
     })();
     return () => { cancelled = true; };

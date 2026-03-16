@@ -1,31 +1,38 @@
 import { getApiBase, getMiniAppAppId, DEFAULT_SCOPES } from "../lib/config";
+import { addLog } from "../lib/debugLog";
 
-const WV_READY_TIMEOUT_MS = 8000;  // Đợi tối đa 8s cho super app inject WindVane
-const WV_POLL_INTERVAL_MS = 300;   // Kiểm tra mỗi 300ms
+const LOG = "[MiniApp]";
+const WV_READY_TIMEOUT_MS = 12000; // Đợi tối đa 12s (CDN load + super app inject)
+const WV_POLL_INTERVAL_MS = 150;  // Kiểm tra mỗi 150ms
 
-function isWindVaneReady(): boolean {
+export function isWindVaneReady(): boolean {
   return typeof window !== "undefined" && !!window.WindVane && typeof window.WindVane.call === "function";
 }
 
 export function onWindVaneReady(): Promise<void> {
   return new Promise((resolve) => {
     if (isWindVaneReady()) {
+      addLog("onWindVaneReady: WindVane đã có sẵn");
       return resolve();
     }
 
+    addLog("onWindVaneReady: đợi event + poll", WV_POLL_INTERVAL_MS + "ms, timeout", WV_READY_TIMEOUT_MS + "ms");
     let done = false;
-    const finish = () => {
+    let finishedBy = "";
+    const finish = (by: string) => {
       if (done) return;
       done = true;
+      finishedBy = by;
+      addLog("onWindVaneReady: kết thúc —", by, "| WindVane?", !!window.WindVane, "| .call?", typeof window.WindVane?.call);
       resolve();
     };
 
     // 1. Lắng nghe event WindVaneReady (super app có thể fire khi inject xong)
     if (typeof document !== "undefined") {
-      document.addEventListener("WindVaneReady", finish, { once: true });
+      document.addEventListener("WindVaneReady", () => finish("event WindVaneReady"), { once: true });
     }
 
-    // 2. Poll kiểm tra window.WindVane mỗi 300ms (phòng event không fire hoặc chậm)
+    // 2. Poll kiểm tra window.WindVane
     const pollStart = Date.now();
     const pollId = setInterval(() => {
       if (done) {
@@ -34,58 +41,75 @@ export function onWindVaneReady(): Promise<void> {
       }
       if (isWindVaneReady()) {
         clearInterval(pollId);
-        finish();
+        finish("poll");
       } else if (Date.now() - pollStart >= WV_READY_TIMEOUT_MS) {
         clearInterval(pollId);
-        finish(); // Hết thời gian vẫn resolve để caller tự check lại
+        finish("timeout " + WV_READY_TIMEOUT_MS + "ms");
       }
     }, WV_POLL_INTERVAL_MS);
 
-    // 3. Timeout tổng: sau 8s chưa có thì vẫn resolve (caller sẽ check window.WindVane?.call)
+    // 3. Timeout tổng
     setTimeout(() => {
       clearInterval(pollId);
-      finish();
+      if (!done) finish("setTimeout " + WV_READY_TIMEOUT_MS + "ms");
     }, WV_READY_TIMEOUT_MS);
   });
 }
 
 function getAuthCodeOnce(scopes: string[]): Promise<{ authCode: string }> {
-  return onWindVaneReady().then(
+  return onWindVaneReady()
+    .then(() => new Promise<void>((r) => setTimeout(r, 100)))
+    .then(
       () =>
         new Promise((resolve, reject) => {
           if (!isWindVaneReady()) {
+            addLog("getAuthCodeOnce: WindVane chưa sẵn sàng sau khi đợi");
             reject(new Error("WindVane chưa sẵn sàng"));
             return;
           }
           const appId = getMiniAppAppId();
           if (!appId) {
+            addLog("getAuthCodeOnce: appId rỗng");
             reject(new Error("appId đang rỗng"));
             return;
           }
+          addLog("getAuthCodeOnce: gọi WindVane.call getAuthCode appId=" + appId.slice(0, 8) + "...");
           window.WindVane!.call(
             "wv",
             "getAuthCode",
             { appId, scopes },
             (res: unknown) => {
               const r = res as { authCode?: string };
-              if (!r?.authCode) reject(new Error("Không nhận được authCode"));
-              else resolve({ authCode: r.authCode });
+              if (!r?.authCode) {
+                addLog("getAuthCodeOnce: response không có authCode", r);
+                reject(new Error("Không nhận được authCode"));
+              } else {
+                addLog("getAuthCodeOnce: OK, authCode length=" + (r.authCode?.length ?? 0));
+                resolve({ authCode: r.authCode });
+              }
             },
-            (err: unknown) => reject(err ?? new Error("getAuthCode fail"))
+            (err: unknown) => {
+              addLog("getAuthCodeOnce: WindVane callback lỗi", err);
+              reject(err ?? new Error("getAuthCode fail"));
+            }
           );
         })
     );
 }
 
 export function getAuthCode(scopes: string[] = [...DEFAULT_SCOPES]): Promise<{ authCode: string }> {
-  return getAuthCodeOnce(scopes).catch((err) => {
-    // Retry 1 lần ngay nếu lỗi "WindVane chưa sẵn sàng"
-    const msg = err?.message ?? "";
-    if (msg.includes("WindVane chưa sẵn sàng") || msg.includes("chưa sẵn sàng")) {
-      return getAuthCodeOnce(scopes);
-    }
-    throw err;
-  });
+  const tryGetAuthCode = (attempt: number): Promise<{ authCode: string }> =>
+    getAuthCodeOnce(scopes).catch((err) => {
+      const msg = err?.message ?? "";
+      const isNotReady = msg.includes("WindVane chưa sẵn sàng") || msg.includes("chưa sẵn sàng");
+      if (isNotReady && attempt < 3) {
+        addLog("getAuthCode: retry", attempt + 1, "/ 3 —", msg);
+        return new Promise<void>((r) => setTimeout(r, 400)).then(() => tryGetAuthCode(attempt + 1));
+      }
+      addLog("getAuthCode: thất bại", attempt + 1, "lần —", msg, err);
+      throw err;
+    });
+  return tryGetAuthCode(0);
 }
 
 export interface SuperAppLoginResult {
@@ -98,8 +122,10 @@ export interface SuperAppLoginResult {
 export async function loginMiniApp(
   scopes: string[] = [...DEFAULT_SCOPES]
 ): Promise<SuperAppLoginResult> {
+  addLog("loginMiniApp: bắt đầu scopes=", scopes.join(","));
   const auth = await getAuthCode(scopes);
   const apiBase = getApiBase();
+  addLog("loginMiniApp: gọi API", apiBase + "/auth/superapp-login");
   const res = await fetch(`${apiBase}/auth/superapp-login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -110,6 +136,11 @@ export async function loginMiniApp(
     }),
   });
   const data = (await res.json()) as SuperAppLoginResult;
+  if (data?.success) {
+    addLog("loginMiniApp: OK, có số ĐT?", !!getPhoneFromLoginResult(data));
+  } else {
+    addLog("loginMiniApp: API lỗi/success=false", data?.error ?? data?.message ?? data);
+  }
   return data;
 }
 
