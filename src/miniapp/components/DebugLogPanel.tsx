@@ -75,12 +75,14 @@ export const DebugLogPanel: React.FC = () => {
           {lines.length === 0 ? (
             <div style={{ color: "#666" }}>Chưa có log. Thao tác app để xem.</div>
           ) : (
-            lines.map((line, i) => (
-              <div key={i} style={{ marginBottom: 2, borderBottom: "1px solid #222" }}>
-                {line}
-              </div>
-            ))
-          }
+            <>
+              {lines.map((line, i) => (
+                <div key={i} style={{ marginBottom: 2, borderBottom: "1px solid #222" }}>
+                  {line}
+                </div>
+              ))}
+            </>
+          )}
         </div>
       )}
     </>
