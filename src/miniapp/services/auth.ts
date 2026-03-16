@@ -2,7 +2,6 @@ import { getApiBase, getMiniAppAppId, DEFAULT_SCOPES } from "../lib/config";
 
 const WV_READY_TIMEOUT_MS = 8000;  // Đợi tối đa 8s cho super app inject WindVane
 const WV_POLL_INTERVAL_MS = 300;   // Kiểm tra mỗi 300ms
-const WV_EXTRA_DELAY_MS = 600;     // Delay thêm sau khi thấy WindVane (để native kịp xử lý)
 
 function isWindVaneReady(): boolean {
   return typeof window !== "undefined" && !!window.WindVane && typeof window.WindVane.call === "function";
@@ -51,9 +50,7 @@ export function onWindVaneReady(): Promise<void> {
 }
 
 function getAuthCodeOnce(scopes: string[]): Promise<{ authCode: string }> {
-  return onWindVaneReady()
-    .then(() => new Promise<void>((r) => setTimeout(r, WV_EXTRA_DELAY_MS)))
-    .then(
+  return onWindVaneReady().then(
       () =>
         new Promise((resolve, reject) => {
           if (!isWindVaneReady()) {
@@ -82,11 +79,10 @@ function getAuthCodeOnce(scopes: string[]): Promise<{ authCode: string }> {
 
 export function getAuthCode(scopes: string[] = [...DEFAULT_SCOPES]): Promise<{ authCode: string }> {
   return getAuthCodeOnce(scopes).catch((err) => {
-    // Retry 1 lần sau 1.5s nếu lỗi "WindVane chưa sẵn sàng" (native có thể inject chậm)
+    // Retry 1 lần ngay nếu lỗi "WindVane chưa sẵn sàng"
     const msg = err?.message ?? "";
     if (msg.includes("WindVane chưa sẵn sàng") || msg.includes("chưa sẵn sàng")) {
-      return new Promise<void>((r) => setTimeout(r, 1500))
-        .then(() => getAuthCodeOnce(scopes));
+      return getAuthCodeOnce(scopes);
     }
     throw err;
   });
