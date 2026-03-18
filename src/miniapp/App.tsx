@@ -1,29 +1,25 @@
 import React from "react";
-import { HashRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import { MiniAppProvider } from "./context/MiniAppContext";
 import { StatusBar } from "./components/StatusBar";
 import { BottomNav } from "./components/BottomNav";
 import { AuthPermissionModal } from "./components/AuthPermissionModal";
 import { DebugLogPanel } from "./components/DebugLogPanel";
 import { HomePage } from "./pages/HomePage";
-import { CameraPage } from "./pages/CameraPage.tsx";
+import { ZYAppPage } from "./pages/ZYAppPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { DevicePage } from "./pages/DevicePage";
 import { DeviceTimerPage } from "./pages/DeviceTimerPage";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
 
 function Layout({ children }: { children: React.ReactNode }) {
-  const location = useLocation();
-  // Với HashRouter: pathname đã là "/camera"...
-  // Ẩn UI chrome của app cha để tránh nhìn như bị duplicate khi nhúng iframe.
-  const isCameraRoute = location.pathname === "/camera" || location.pathname.startsWith("/camera/");
   return (
     <div id="app">
-      {!isCameraRoute && <StatusBar />}
+      <StatusBar />
       <main id="main-content">{children}</main>
-      {!isCameraRoute && <BottomNav />}
-      {!isCameraRoute && <AuthPermissionModal />}
-      {!isCameraRoute && <DebugLogPanel />}
+      <BottomNav />
+      <AuthPermissionModal />
+      <DebugLogPanel />
     </div>
   );
 }
@@ -35,7 +31,7 @@ export default function App() {
         <Layout>
           <Routes>
             <Route path="/" element={<HomePage />} />
-            <Route path="/camera" element={<CameraPage />} />
+            <Route path="/zyapp" element={<ZYAppPage />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/device/:deviceId" element={<DevicePage />} />
             <Route path="/device/:deviceId/timer" element={<DeviceTimerPage />} />
