@@ -1,9 +1,10 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { HomeOutlined, ThunderboltOutlined, ShoppingCartOutlined, UserOutlined } from "@ant-design/icons";
+import { HomeOutlined, VideoCameraOutlined, ThunderboltOutlined, ShoppingCartOutlined, UserOutlined } from "@ant-design/icons";
 
 const NAV_ITEMS = [
   { path: "/", page: "home", label: "Smart Home", icon: HomeOutlined },
+  { path: "/camera", page: "camera", label: "Camera", icon: VideoCameraOutlined },
   { path: "/automation", page: "automation", label: "Tự động", icon: ThunderboltOutlined },
   { path: "/store", page: "store", label: "Cửa hàng", icon: ShoppingCartOutlined },
   { path: "/profile", page: "profile", label: "Hồ sơ", icon: UserOutlined },

@@ -6,6 +6,7 @@ import { BottomNav } from "./components/BottomNav";
 import { AuthPermissionModal } from "./components/AuthPermissionModal";
 import { DebugLogPanel } from "./components/DebugLogPanel";
 import { HomePage } from "./pages/HomePage";
+import { CameraPage } from "./pages/CameraPage.tsx";
 import { ProfilePage } from "./pages/ProfilePage";
 import { DevicePage } from "./pages/DevicePage";
 import { DeviceTimerPage } from "./pages/DeviceTimerPage";
@@ -30,6 +31,7 @@ export default function App() {
         <Layout>
           <Routes>
             <Route path="/" element={<HomePage />} />
+            <Route path="/camera" element={<CameraPage />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/device/:deviceId" element={<DevicePage />} />
             <Route path="/device/:deviceId/timer" element={<DeviceTimerPage />} />
