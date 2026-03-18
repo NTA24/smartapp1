@@ -1,5 +1,5 @@
 import React from "react";
-import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
+import { HashRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { MiniAppProvider } from "./context/MiniAppContext";
 import { StatusBar } from "./components/StatusBar";
 import { BottomNav } from "./components/BottomNav";
@@ -13,13 +13,17 @@ import { DeviceTimerPage } from "./pages/DeviceTimerPage";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
 
 function Layout({ children }: { children: React.ReactNode }) {
+  const location = useLocation();
+  // Với HashRouter: pathname đã là "/camera"...
+  // Ẩn UI chrome của app cha để tránh nhìn như bị duplicate khi nhúng iframe.
+  const isCameraRoute = location.pathname === "/camera" || location.pathname.startsWith("/camera/");
   return (
     <div id="app">
-      <StatusBar />
+      {!isCameraRoute && <StatusBar />}
       <main id="main-content">{children}</main>
-      <BottomNav />
-      <AuthPermissionModal />
-      <DebugLogPanel />
+      {!isCameraRoute && <BottomNav />}
+      {!isCameraRoute && <AuthPermissionModal />}
+      {!isCameraRoute && <DebugLogPanel />}
     </div>
   );
 }

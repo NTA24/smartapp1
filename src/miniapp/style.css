@@ -449,6 +449,11 @@ body {
   -webkit-overflow-scrolling: touch;
 }
 
+#main-content.is-camera {
+  padding: 0;
+  overflow: hidden;
+}
+
 /* ========== Bottom navigation ========== */
 .bottom-nav {
   position: fixed;

@@ -20,9 +20,15 @@ export const CameraPage: React.FC = () => {
   const [err, setErr] = useState<string>("");
 
   useEffect(() => {
+    // Route /camera: bỏ padding/scroll của #main-content để iframe không bị “lộ” content phía sau
+    const main = document.getElementById("main-content");
+    main?.classList.add("is-camera");
     checkWasm().then((r) => {
       if (!r.ok) setErr(r.message);
     });
+    return () => {
+      main?.classList.remove("is-camera");
+    };
   }, []);
 
   return (
