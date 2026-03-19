@@ -1,85 +1,10 @@
-import React, { useState } from "react";
+import React from "react";
 import { Link } from "react-router-dom";
 import { useMiniApp } from "../context/MiniAppContext";
-import { storeGet } from "../lib/store";
-import { STORAGE_KEY_APP_ID } from "../lib/config";
-import { loginMiniApp, getPhoneFromLoginResult, isWindVaneReady } from "../services/auth";
 import { PlusOutlined, UserOutlined, AudioOutlined, DesktopOutlined, AppstoreOutlined, SettingOutlined, MessageOutlined } from "@ant-design/icons";
 
 export const ProfilePage: React.FC = () => {
-  const { userPhone, setUserPhone, appId, saveAppId } = useMiniApp();
-  const [appIdInput, setAppIdInput] = useState(() => storeGet(STORAGE_KEY_APP_ID) ?? appId ?? "");
-  const [checkResult, setCheckResult] = useState("");
-  const [checkError, setCheckError] = useState(false);
-  const [callPermissionResult, setCallPermissionResult] = useState("");
-
-  const handleCopyPhone = () => {
-    if (!userPhone) return;
-    if (navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(userPhone).catch(() => {});
-    } else {
-      try {
-        const temp = document.createElement("input");
-        temp.value = userPhone;
-        document.body.appendChild(temp);
-        temp.select();
-        document.execCommand("copy");
-        document.body.removeChild(temp);
-      } catch {}
-    }
-    alert("Đã sao chép số điện thoại");
-  };
-
-  const handleSaveAppId = () => {
-    const val = appIdInput.trim();
-    saveAppId(val);
-    setCheckResult(val ? "Đã lưu App ID. Bấm \"Kiểm tra kết nối / Lấy số ĐT\" để thử lại." : "Đã xóa App ID đã lưu.");
-    setCheckError(false);
-  };
-
-  const handleCheckApi = async () => {
-    if (!isWindVaneReady()) {
-      setCheckResult("Vui lòng mở app từ Super App (Tammi) để lấy số điện thoại.");
-      setCheckError(true);
-      return;
-    }
-    setCheckResult("Đang kiểm tra...");
-    setCheckError(false);
-    try {
-      const data = await loginMiniApp();
-      const phone = getPhoneFromLoginResult(data);
-      if (phone) {
-        setUserPhone(phone);
-        setCheckResult("OK. Số ĐT: " + phone);
-      } else {
-        setCheckResult("Backend OK nhưng không có số. Chi tiết: " + JSON.stringify(data?.data ?? {}).slice(0, 300));
-        setCheckError(true);
-      }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (err: any) {
-      const msg = err instanceof Error ? err.message : String(err);
-      const friendlyMsg = /windvane|chưa sẵn sàng/i.test(msg)
-        ? "Vui lòng mở app từ Super App (Tammi) để lấy số điện thoại."
-        : msg;
-      setCheckResult("Lỗi: " + friendlyMsg);
-      setCheckError(true);
-    }
-  };
-
-  const handleRequestCallPermission = async () => {
-    setCallPermissionResult("Đang xin quyền gọi...");
-    try {
-      const P = typeof window !== "undefined" ? window.MiniAppPermissions : null;
-      if (P?.authorize) {
-        await P.authorize("call");
-        setCallPermissionResult("Call permission granted successfully");
-      } else {
-        setCallPermissionResult("MiniAppPermissions not loaded");
-      }
-    } catch {
-      setCallPermissionResult("Permission denied. Please grant call permission in device settings.");
-    }
-  };
+  const { userPhone } = useMiniApp();
 
   return (
     <div className="page-profile">
@@ -92,51 +17,7 @@ export const ProfilePage: React.FC = () => {
           <span className="account-phone-label">Số điện thoại</span>
           <div className="account-phone-value">
             <span className="account-phone-number">{userPhone || "Chưa có"}</span>
-            <button type="button" className="account-phone-copy" onClick={handleCopyPhone}>Sao chép</button>
           </div>
-        </div>
-        <div className="profile-appid-row">
-          <label className="profile-appid-label">App ID (Mini App)</label>
-          <div className="profile-appid-input-row">
-            <input
-              type="text"
-              className="profile-appid-input"
-              placeholder="Dán App ID từ Tammi/Super App"
-              value={appIdInput}
-              onChange={(e) => setAppIdInput(e.target.value)}
-            />
-            <button type="button" className="profile-appid-save" onClick={handleSaveAppId}>Lưu</button>
-          </div>
-          <div className="profile-appid-hint">
-            Nếu appId rỗng: lấy App ID từ console Tammi → dán vào ô trên → Lưu → bấm &quot;Kiểm tra kết nối / Lấy số ĐT&quot;
-          </div>
-        </div>
-        <button type="button" className="profile-check-api-btn" onClick={handleCheckApi}>
-          Kiểm tra kết nối / Lấy số ĐT
-        </button>
-        <div
-          className="profile-check-result"
-          style={{
-            display: checkResult ? "block" : "none",
-            marginTop: 8,
-            padding: "8px 12px",
-            fontSize: 13,
-            borderRadius: 8,
-            background: checkError ? "#ffebee" : "#e8f5e9",
-            color: checkError ? "#c62828" : "#2e7d32",
-          }}
-        >
-          {checkResult}
-        </div>
-        <div className="profile-permission-row">
-          <button type="button" className="profile-check-api-btn" onClick={handleRequestCallPermission}>
-            Xin quyền gọi (call)
-          </button>
-          {callPermissionResult && (
-            <div className="profile-permission-result" style={{ marginTop: 8, padding: "8px 12px", fontSize: 13 }}>
-              {callPermissionResult}
-            </div>
-          )}
         </div>
         <div className="tags">
           <span className="tag">2 gia đình</span>

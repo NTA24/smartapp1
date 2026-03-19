@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { getAuthCode } from "../services/auth";
 
 const ZYAPP_HOST = "https://smartapp-ten.vercel.app";
 const ZYAPP_BASE = `${ZYAPP_HOST}/ZYApp/`;
@@ -7,6 +8,9 @@ export const ZYAppPage: React.FC = () => {
   const [decoderError, setDecoderError] = useState<string>("");
   const [logOpen, setLogOpen] = useState(false);
   const [logText, setLogText] = useState("");
+  const [authCode, setAuthCode] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
+  const [copyStatus, setCopyStatus] = useState("");
 
   const urls = useMemo(() => {
     return {
@@ -66,6 +70,48 @@ export const ZYAppPage: React.FC = () => {
     await checkWasmMagic(urls.wasm);
   };
 
+  const handleGetAuthCode = async () => {
+    setAuthLoading(true);
+    setCopyStatus("");
+    appendLog("");
+    appendLog("[auth] calling wv.getAuthCode...");
+    try {
+      const result = await getAuthCode(["auth_user"]);
+      setAuthCode(result.authCode);
+      appendLog(`[auth] scope used: ${result.scopes.join(", ")}`);
+      appendLog(`[auth] authCode: ${result.authCode}`);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      appendLog(`[auth] ERROR: ${msg}`);
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleCopyAuthCode = async () => {
+    if (!authCode) return;
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(authCode);
+      } else {
+        const ta = document.createElement("textarea");
+        ta.value = authCode;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+      }
+      setCopyStatus("Copied");
+      appendLog("[auth] copied authCode to clipboard");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setCopyStatus("Copy failed");
+      appendLog(`[auth] copy failed: ${msg}`);
+    }
+  };
+
   useEffect(() => {
     const main = document.getElementById("main-content");
     main?.classList.add("is-zyapp");
@@ -86,6 +132,39 @@ export const ZYAppPage: React.FC = () => {
   return (
     <div className="page-zyapp">
       <div style={{ position: "absolute", top: 8, right: 8, zIndex: 11, display: "flex", gap: 8 }}>
+        <button
+          type="button"
+          onClick={() => void handleGetAuthCode()}
+          disabled={authLoading}
+          style={{
+            padding: "8px 10px",
+            borderRadius: 10,
+            border: "1px solid rgba(0,0,0,0.15)",
+            background: "#ffffff",
+            fontSize: 12,
+            fontWeight: 600,
+            opacity: authLoading ? 0.6 : 1,
+          }}
+        >
+          {authLoading ? "Getting..." : "Get authCode"}
+        </button>
+        <button
+          type="button"
+          onClick={() => void handleCopyAuthCode()}
+          disabled={!authCode}
+          style={{
+            padding: "8px 10px",
+            borderRadius: 10,
+            border: "1px solid rgba(0,0,0,0.15)",
+            background: "#ffffff",
+            fontSize: 12,
+            fontWeight: 600,
+            opacity: authCode ? 1 : 0.6,
+          }}
+          title={authCode ? "Copy latest authCode" : "No authCode yet"}
+        >
+          {copyStatus || "Copy authCode"}
+        </button>
         <button
           type="button"
           onClick={() => {
@@ -143,6 +222,7 @@ export const ZYAppPage: React.FC = () => {
           }}
         >
           {logText || "…"}
+          {authCode ? `\n\nauthCode(latest): ${authCode}` : ""}
         </div>
       )}
 
