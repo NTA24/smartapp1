@@ -71,6 +71,55 @@
         }
       })();
     </script>
+    <script>
+      (function () {
+        // Patch UI for camera back button in bundled ZYApp pages.
+        // Target is confirmed by SVG rect id: LeftOutline-矩形
+        function findBackTapTarget() {
+          var marker = document.getElementById("LeftOutline-矩形");
+          if (!marker) return null;
+          var cur = marker.parentElement;
+          while (cur && cur !== document.body) {
+            if (cur.tagName === "BUTTON" || cur.tagName === "A") return cur;
+            cur = cur.parentElement;
+          }
+          return marker.parentElement || null;
+        }
+
+        function styleBackButton(el) {
+          if (!el || !(el instanceof HTMLElement)) return;
+          el.style.width = "38px";
+          el.style.height = "38px";
+          el.style.minWidth = "38px";
+          el.style.minHeight = "38px";
+          el.style.display = "inline-flex";
+          el.style.alignItems = "center";
+          el.style.justifyContent = "center";
+          el.style.background = "#ffffff";
+          el.style.border = "1.5px solid #b8c3d4";
+          el.style.borderRadius = "999px";
+          el.style.boxShadow = "0 1px 6px rgba(15, 23, 42, 0.08)";
+          el.style.boxSizing = "border-box";
+          el.style.textDecoration = "none";
+        }
+
+        function patchBackButtons() {
+          try {
+            var backEl = findBackTapTarget();
+            styleBackButton(backEl);
+          } catch (_) {}
+        }
+
+        if (document.readyState === "loading") {
+          document.addEventListener("DOMContentLoaded", patchBackButtons);
+        } else {
+          patchBackButtons();
+        }
+
+        // Re-apply because page content is SPA + async render
+        setInterval(patchBackButtons, 800);
+      })();
+    </script>
 
     <script type="module" crossorigin src="./js/index.1773823368676.js"></script>
     <link rel="stylesheet" href="./assets/index-385ded20.1773823368676.css" />

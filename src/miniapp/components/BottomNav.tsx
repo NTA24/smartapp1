@@ -4,7 +4,7 @@ import { HomeOutlined, AppstoreOutlined, ThunderboltOutlined, ShoppingCartOutlin
 
 const NAV_ITEMS = [
   { path: "/", page: "home", label: "Smart Home", icon: HomeOutlined },
-  { path: "/zyapp", page: "zyapp", label: "ZYApp", icon: AppstoreOutlined },
+  { path: "/zyapp", page: "zyapp", label: "Camera", icon: AppstoreOutlined },
   { path: "/automation", page: "automation", label: "Tự động", icon: ThunderboltOutlined },
   { path: "/store", page: "store", label: "Cửa hàng", icon: ShoppingCartOutlined },
   { path: "/profile", page: "profile", label: "Hồ sơ", icon: UserOutlined },
@@ -12,7 +12,7 @@ const NAV_ITEMS = [
 
 export const BottomNav: React.FC = () => {
   const location = useLocation();
-  const pathname = location.hash ? location.hash.slice(1) || "/" : "/";
+  const pathname = location.pathname || "/";
   const currentPage = pathname === "/" ? "home" : pathname.split("/")[1] || "home";
 
   return (

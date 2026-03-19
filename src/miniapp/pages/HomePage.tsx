@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, NavLink } from "react-router-dom";
 import { CloudOutlined, BulbOutlined, MenuOutlined, SettingOutlined, SearchOutlined } from "@ant-design/icons";
 import { DeviceCard } from "../components/DeviceCard";
 
@@ -10,8 +10,12 @@ export const HomePage: React.FC = () => {
     <div className="page-home">
       <div className="user-id" id="user-id">6838309456-</div>
       <div className="tabs">
-        <Link to="/" className="active">Smart Home</Link>
-        <Link to="/shared">Đã chia sẻ</Link>
+        <NavLink to="/" end className={({ isActive }) => (isActive ? "active" : undefined)}>
+          Smart Home
+        </NavLink>
+        <NavLink to="/shared" className={({ isActive }) => (isActive ? "active" : undefined)}>
+          Đã chia sẻ
+        </NavLink>
         <button
           type="button"
           className="icon-menu"

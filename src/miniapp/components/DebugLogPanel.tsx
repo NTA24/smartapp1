@@ -5,6 +5,7 @@ export const DebugLogPanel: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [authCode, setAuthCode] = useState("");
   const [status, setStatus] = useState("");
+  const [collapsed, setCollapsed] = useState(false);
 
   const handleGetAuthCode = async () => {
     setLoading(true);
@@ -41,6 +42,29 @@ export const DebugLogPanel: React.FC = () => {
     }
   };
 
+  if (collapsed) {
+    return (
+      <button
+        type="button"
+        onClick={() => setCollapsed(false)}
+        style={{
+          position: "fixed",
+          right: 8,
+          bottom: 56,
+          zIndex: 9998,
+          padding: "8px 10px",
+          borderRadius: 999,
+          border: "1px solid rgba(0,0,0,0.2)",
+          background: "rgba(255,255,255,0.96)",
+          fontSize: 12,
+          fontWeight: 600,
+        }}
+      >
+        Auth
+      </button>
+    );
+  }
+
   return (
     <div
       style={{
@@ -56,6 +80,25 @@ export const DebugLogPanel: React.FC = () => {
         boxShadow: "0 4px 16px rgba(0,0,0,0.15)",
       }}
     >
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 6 }}>
+        <button
+          type="button"
+          onClick={() => setCollapsed(true)}
+          aria-label="Thu nhỏ"
+          style={{
+            width: 20,
+            height: 20,
+            borderRadius: 999,
+            border: "1px solid rgba(0,0,0,0.2)",
+            background: "#fff",
+            fontSize: 12,
+            lineHeight: 1,
+            cursor: "pointer",
+          }}
+        >
+          ×
+        </button>
+      </div>
       <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
         <button
           type="button"

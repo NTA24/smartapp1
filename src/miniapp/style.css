@@ -95,6 +95,9 @@ body {
   font-size: 22px;
   border-radius: 12px;
   cursor: pointer;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
 .status-icons .status-icon-btn:hover {
@@ -499,8 +502,10 @@ body {
   font-weight: 500;
   flex: 1;
   padding: 6px 0 8px;
-  transition: color var(--transition);
+  transition: color var(--transition), background-color var(--transition);
   line-height: 1.2;
+  border-radius: 12px;
+  margin: 0 4px;
 }
 
 .nav-label {
@@ -511,6 +516,7 @@ body {
 .nav-item.active {
   color: var(--accent-teal);
   font-weight: 600;
+  background: var(--accent-teal-light);
 }
 
 .nav-icon {
@@ -570,6 +576,8 @@ body {
   gap: 32px;
   margin: 20px 0 28px;
   position: relative;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .page-home .tabs a {
@@ -793,6 +801,13 @@ body {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.page-home .device-card {
+  width: 100%;
+  max-width: 100%;
 }
 
 .page-home .edit-wrap {
@@ -880,26 +895,39 @@ body {
   transition: all var(--transition);
 }
 
-/* Nút back chung: vòng tròn xám, mũi tên trái, bóng mềm */
+/* Nút back chung: outlined, bo tròn */
 .btn-back {
-  width: 36px;
-  height: 36px;
-  min-width: 36px;
-  min-height: 36px;
+  width: 38px;
+  height: 38px;
+  min-width: 38px;
+  min-height: 38px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: #e8eaef !important;
+  background: #ffffff !important;
   border-radius: 50%;
-  border: 1px solid rgba(0, 0, 0, 0.06) !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border: 1.5px solid #cfd7e3 !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
   text-decoration: none;
+  color: #1a2332;
+}
+
+/* Ép style cho nút back ở trang thiết bị/camera để không bị rule khác đè */
+.page-device .nav-bar .back.btn-back {
+  background: #ffffff !important;
+  border: 1.5px solid #b8c3d4 !important;
+  border-radius: 999px !important;
+  box-shadow: 0 1px 6px rgba(15, 23, 42, 0.08) !important;
 }
 
 .btn-back:active {
-  background: #dce0e6 !important;
+  background: #f5f7fb !important;
   transform: scale(0.96);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.page-device .nav-bar .back.btn-back:active {
+  background: #f2f5fa !important;
 }
 
 .btn-back-arrow {
@@ -909,6 +937,7 @@ body {
   width: 22px;
   height: 22px;
   color: #1a2332;
+  font-size: 18px;
 }
 
 .btn-back-arrow svg {
@@ -916,15 +945,41 @@ body {
   height: 100%;
 }
 
+/* Nếu back button đứng một mình và đang bị căn giữa, đẩy về trái */
+.btn-back:only-child {
+  margin-left: 0 !important;
+  margin-right: auto !important;
+}
+
+/* Header dùng cho PlaceholderPage */
+.sub-page-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 22px 14px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.sub-page-header .sub-page-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+}
+
 .page-device .nav-bar .title {
-  font-size: 19px;
-  font-weight: 600;
+  font-size: 18px;
+  font-weight: 700;
   flex: 1;
   text-align: center;
   overflow: visible;
   text-overflow: clip;
   white-space: normal;
   padding: 0 14px;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
 }
 
 .page-device .nav-bar .menu-dots {
