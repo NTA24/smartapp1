@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { getMiniAppAppId, getApiBase, saveAppId, STORAGE_KEY_APP_ID, DEFAULT_MINIAPP_APP_ID } from "../lib/config";
 import { storeGet } from "../lib/store";
 import { getAuthCode, onWindVaneReady } from "../services/auth";
@@ -23,7 +23,7 @@ const initialState: MiniAppState = {
   userPhone: typeof window !== "undefined" ? (window.MINIAPP_USER_PHONE ?? "") : "",
   appId: "",
   apiBase: getApiBase(),
-  authModalVisible: true,
+  authModalVisible: false,
 };
 
 const MiniAppContext = createContext<MiniAppContextValue | null>(null);
@@ -33,6 +33,8 @@ export function MiniAppProvider({ children }: { children: React.ReactNode }) {
     ...initialState,
     appId: getMiniAppAppId(),
   }));
+
+  const didRequestRef = useRef(false);
 
   const setUserPhone = useCallback((phone: string) => {
     setState((s) => ({ ...s, userPhone: phone }));
@@ -80,7 +82,7 @@ export function MiniAppProvider({ children }: { children: React.ReactNode }) {
     setState((s) => ({ ...s, appId: getMiniAppAppId() }));
   }, []);
 
-  // Khi mở app: đợi WindVane rồi hiển thị modal "Cho phép"
+  // Khi mở app: đợi WindVane rồi gọi flow lấy user ngay
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -101,8 +103,10 @@ export function MiniAppProvider({ children }: { children: React.ReactNode }) {
         setState((s) => ({ ...s, appId: DEFAULT_MINIAPP_APP_ID }));
       }
 
-      // Có WindVane → hiện modal để user bấm Cho phép
-      setState((s) => ({ ...s, authModalVisible: true }));
+      if (!didRequestRef.current) {
+        didRequestRef.current = true;
+        await requestAuthAndPhone();
+      }
     })();
     return () => { cancelled = true; };
   }, []);

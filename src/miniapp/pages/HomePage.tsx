@@ -6,7 +6,7 @@ import { useMiniApp } from "../context/MiniAppContext";
 
 export const HomePage: React.FC = () => {
   const [menuOpen, setMenuOpen] = useState(false);
-  const { userPhone, authModalVisible } = useMiniApp();
+  const { userPhone } = useMiniApp();
   const [loadingUser, setLoadingUser] = useState(true);
 
   useEffect(() => {
@@ -24,13 +24,14 @@ export const HomePage: React.FC = () => {
 
   return (
     <div className="page-home">
-      {loadingUser && !authModalVisible && (
+      {loadingUser && (
         <div
           style={{
             position: "fixed",
             inset: 0,
             background: "rgba(255,255,255,0.78)",
             zIndex: 9997,
+            pointerEvents: "none",
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
