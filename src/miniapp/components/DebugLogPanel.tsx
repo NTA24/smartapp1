@@ -1,10 +1,13 @@
 import React, { useState } from "react";
 import { getAuthCode } from "../services/auth";
+import { getUserInfoByAuthCode } from "../../api/authentication/getUserInfoByAuthCode";
 
 export const DebugLogPanel: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [authCode, setAuthCode] = useState("");
   const [status, setStatus] = useState("");
+  const [userLoading, setUserLoading] = useState(false);
+  const [userInfoText, setUserInfoText] = useState("");
   const [collapsed, setCollapsed] = useState(false);
 
   const handleGetAuthCode = async () => {
@@ -39,6 +42,24 @@ export const DebugLogPanel: React.FC = () => {
       setStatus("Đã copy authCode");
     } catch (e) {
       setStatus("Copy lỗi: " + (e instanceof Error ? e.message : String(e)));
+    }
+  };
+
+  const handleGetUserInfo = async () => {
+    if (!authCode) return;
+    setUserLoading(true);
+    setUserInfoText("");
+    setStatus("");
+    try {
+      const userInfo = await getUserInfoByAuthCode(authCode);
+      const summary = `username: ${userInfo.username}\nemail: ${userInfo.email}\nfullName: ${userInfo.fullName}`;
+      setUserInfoText(summary);
+      setStatus("User info fetched");
+    } catch (e) {
+      setUserInfoText("");
+      setStatus(e instanceof Error ? e.message : String(e));
+    } finally {
+      setUserLoading(false);
     }
   };
 
@@ -133,6 +154,24 @@ export const DebugLogPanel: React.FC = () => {
         >
           Copy
         </button>
+        <button
+          type="button"
+          onClick={() => void handleGetUserInfo()}
+          disabled={!authCode || userLoading}
+          style={{
+            padding: "6px 8px",
+            borderRadius: 8,
+            border: "1px solid rgba(0,0,0,0.15)",
+            background: "#fff",
+            fontSize: 12,
+            fontWeight: 600,
+            opacity: authCode && !userLoading ? 1 : 0.5,
+            flex: 1,
+          }}
+          title="POST /api/v1/mini-app/oauth/user-info"
+        >
+          {userLoading ? "..." : "User"}
+        </button>
       </div>
       <div
         style={{
@@ -148,6 +187,23 @@ export const DebugLogPanel: React.FC = () => {
         }}
       >
         {authCode || "Chưa có authCode"}
+      </div>
+      <div
+        style={{
+          marginTop: 8,
+          minHeight: 28,
+          maxHeight: 120,
+          overflow: "auto",
+          padding: "6px 8px",
+          borderRadius: 8,
+          background: "#f7f7f7",
+          fontSize: 11,
+          lineHeight: 1.35,
+          wordBreak: "break-word",
+          whiteSpace: "pre-wrap",
+        }}
+      >
+        {userInfoText || "User info: (chưa lấy)"}
       </div>
       {status && (
         <div style={{ marginTop: 6, fontSize: 11, color: "#444", wordBreak: "break-word" }}>
