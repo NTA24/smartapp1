@@ -20,7 +20,20 @@ export const HomePage: React.FC = () => {
     }
   }, [userPhone]);
 
-  const userLabel = userPhone ? `+${userPhone}` : "…";
+  const formatPhone = (phone: string) => {
+    const raw = String(phone || "").trim();
+    if (!raw) return "";
+    // Nếu backend đã trả dạng quốc tế (+xx...) thì giữ nguyên
+    if (raw.startsWith("+")) return raw;
+    // Chỉ giữ số
+    let digits = raw.replace(/[^\d]/g, "");
+    if (!digits) return "";
+    // VN số thường bắt đầu bằng 0
+    if (digits.startsWith("0")) digits = digits.slice(1);
+    return `(+84) ${digits}`;
+  };
+
+  const userLabel = userPhone ? formatPhone(userPhone) : "…";
 
   return (
     <div className="page-home">

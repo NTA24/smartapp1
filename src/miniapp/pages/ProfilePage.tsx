@@ -18,7 +18,17 @@ export const ProfilePage: React.FC = () => {
     }
   }, [userPhone]);
 
-  const finalName = userPhone || "";
+  const formatPhone = (phone: string) => {
+    const raw = String(phone || "").trim();
+    if (!raw) return "";
+    if (raw.startsWith("+")) return raw;
+    let digits = raw.replace(/[^\d]/g, "");
+    if (!digits) return "";
+    if (digits.startsWith("0")) digits = digits.slice(1);
+    return `(+84) ${digits}`;
+  };
+
+  const finalName = userPhone ? formatPhone(userPhone) : "";
 
   return (
     <div className="page-profile">
@@ -64,7 +74,7 @@ export const ProfilePage: React.FC = () => {
         <div className="account-phone">
           <span className="account-phone-label">Số điện thoại</span>
           <div className="account-phone-value">
-            <span className="account-phone-number">{userPhone || "Chưa có"}</span>
+            <span className="account-phone-number">{userPhone ? formatPhone(userPhone) : "Chưa có"}</span>
           </div>
         </div>
         <div className="tags">
