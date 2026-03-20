@@ -1,14 +1,58 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link, NavLink } from "react-router-dom";
 import { CloudOutlined, BulbOutlined, MenuOutlined, SettingOutlined, SearchOutlined } from "@ant-design/icons";
 import { DeviceCard } from "../components/DeviceCard";
+import { useMiniApp } from "../context/MiniAppContext";
 
 export const HomePage: React.FC = () => {
   const [menuOpen, setMenuOpen] = useState(false);
+  const { userPhone } = useMiniApp();
+  const [loadingUser, setLoadingUser] = useState(true);
+
+  useEffect(() => {
+    setLoadingUser(!userPhone);
+
+    if (!userPhone) {
+      const t = window.setTimeout(() => {
+        setLoadingUser(false);
+      }, 15000);
+      return () => window.clearTimeout(t);
+    }
+  }, [userPhone]);
+
+  const userLabel = userPhone ? `${userPhone}-` : "…";
 
   return (
     <div className="page-home">
-      <div className="user-id" id="user-id">6838309456-</div>
+      {loadingUser && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(255,255,255,0.78)",
+            zIndex: 9997,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 10,
+          }}
+        >
+          <div
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 999,
+              border: "3px solid rgba(0,0,0,0.12)",
+              borderTopColor: "rgba(0,172,193,1)",
+              animation: "zy-spin 0.9s linear infinite",
+            }}
+          />
+          <div style={{ fontSize: 13, fontWeight: 600, color: "#1a2332" }}>Đang tải thông tin...</div>
+        </div>
+      )}
+
+      <div className="user-id" id="user-id">{userLabel}</div>
       <div className="tabs">
         <NavLink to="/" end className={({ isActive }) => (isActive ? "active" : undefined)}>
           Smart Home

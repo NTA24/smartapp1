@@ -1,57 +1,24 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useMiniApp } from "../context/MiniAppContext";
-import { getAuthCode } from "../services/auth";
-import { getUserInfoByAuthCode } from "../../api/authentication/getUserInfoByAuthCode";
 import { PlusOutlined, UserOutlined, AudioOutlined, DesktopOutlined, AppstoreOutlined, SettingOutlined, MessageOutlined } from "@ant-design/icons";
 
 export const ProfilePage: React.FC = () => {
-  const { userPhone, authModalVisible } = useMiniApp();
-  const [displayName, setDisplayName] = useState<string>("");
+  const { userPhone } = useMiniApp();
   const [loadingName, setLoadingName] = useState(true);
-  const [loadError, setLoadError] = useState<string>("");
-  const didLoadRef = useRef(false);
 
   useEffect(() => {
-    let cancelled = false;
-    const run = async () => {
-      // Nếu đã load rồi thì không gọi lại.
-      if (didLoadRef.current) return;
-      // Chỉ gọi API sau khi user đã bấm "Cho phép"
-      if (authModalVisible) return;
+    setLoadingName(!userPhone);
 
-      didLoadRef.current = true;
-      setLoadingName(true);
-      setLoadError("");
-
-      try {
-        // Ưu tiên scope theo doc (có username + email)
-        const auth = await getAuthCode(["USER_NAME", "USER_EMAIL"]);
-        const info = await getUserInfoByAuthCode(auth.authCode);
-        const name = String(info.username || info.fullName || "");
-        if (name) setDisplayName(name);
-      } catch (e) {
-        if (cancelled) return;
-        setLoadError(e instanceof Error ? e.message : String(e));
-      } finally {
-        if (cancelled) return;
+    if (!userPhone) {
+      const t = window.setTimeout(() => {
         setLoadingName(false);
-      }
-    };
-
-    if (authModalVisible) {
-      // Khi modal auth đang hiện, vẫn hiển thị loading overlay.
-      setLoadingName(true);
-    } else {
-      void run();
+      }, 15000);
+      return () => window.clearTimeout(t);
     }
+  }, [userPhone]);
 
-    return () => {
-      cancelled = true;
-    };
-  }, [authModalVisible]);
-
-  const finalName = displayName || "6838309456";
+  const finalName = userPhone || "";
 
   return (
     <div className="page-profile">
@@ -82,17 +49,15 @@ export const ProfilePage: React.FC = () => {
           <div style={{ fontSize: 13, fontWeight: 600, color: "#1a2332" }}>
             Đang tải thông tin...
           </div>
-          {loadError && (
-            <div style={{ fontSize: 12, color: "#c62828", padding: "0 20px", textAlign: "center" }}>
-              {loadError}
-            </div>
-          )}
+          <div style={{ fontSize: 12, color: "#8b95a5", padding: "0 20px", textAlign: "center" }}>
+            Vui lòng chờ...
+          </div>
         </div>
       )}
 
       <div className="account-section">
         <div className="account-id">
-          <Link to="/account">{finalName}</Link> <span>›</span>
+          <Link to="/account">{finalName || "Chưa có"}</Link> <span>›</span>
         </div>
         <div className="account-sub">Quản lý tài khoản</div>
         <div className="account-phone">
@@ -107,7 +72,7 @@ export const ProfilePage: React.FC = () => {
         </div>
       </div>
       <div className="card-block">
-        <div className="card-title">{finalName}</div>
+        <div className="card-title">{finalName || "Chưa có"}</div>
         <div className="card-desc">Thành viên trong gia đình(1)</div>
         <div className="card-actions">
           <button type="button" className="icon-btn" aria-label="Thêm thành viên">

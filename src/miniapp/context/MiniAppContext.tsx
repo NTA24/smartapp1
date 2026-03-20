@@ -22,7 +22,7 @@ const initialState: MiniAppState = {
   userPhone: typeof window !== "undefined" ? (window.MINIAPP_USER_PHONE ?? "") : "",
   appId: "",
   apiBase: getApiBase(),
-  authModalVisible: true,
+  authModalVisible: false,
 };
 
 const MiniAppContext = createContext<MiniAppContextValue | null>(null);
@@ -75,36 +75,35 @@ export function MiniAppProvider({ children }: { children: React.ReactNode }) {
     setState((s) => ({ ...s, appId: getMiniAppAppId() }));
   }, []);
 
-  // Khi mở app: đợi WindVane rồi quyết định hiện/ẩn modal
-  // Không tự gọi auth ở đây — auth được gọi khi user bấm "Cho phép" trên modal
+  // Khi mở app: đợi WindVane rồi tự lấy phone (không hiện modal "Cho phép")
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    addLog("useEffect: mở app, đợi WindVane để xác định môi trường");
     let cancelled = false;
     (async () => {
       await onWindVaneReady();
       if (cancelled) return;
 
       if (!window.WindVane?.call) {
-        // Không chạy trong super app → ẩn modal (không cần auth)
-        addLog("useEffect: không có WindVane → ẩn modal, bỏ qua auth");
+        // Không chạy trong super app → bỏ qua auth
         setState((s) => ({ ...s, authModalVisible: false }));
         return;
       }
 
-      // Có WindVane → đảm bảo appId và hiện modal để user bấm "Cho phép"
-      addLog("useEffect: có WindVane → chuẩn bị modal auth");
       const current = getMiniAppAppId();
       if (!current || current.trim() === "") {
         saveAppId(DEFAULT_MINIAPP_APP_ID);
         setState((s) => ({ ...s, appId: DEFAULT_MINIAPP_APP_ID }));
       }
-      // Modal đã visible = true từ initialState → hiện luôn
-      addLog("useEffect: modal auth đang hiện, chờ user bấm Cho phép");
+
+      try {
+        await requestAuthAndPhone();
+      } finally {
+        // đảm bảo không còn hiển thị modal (nếu có cài đặt khác/late state)
+        setState((s) => ({ ...s, authModalVisible: false }));
+      }
     })();
     return () => { cancelled = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const value: MiniAppContextValue = {
