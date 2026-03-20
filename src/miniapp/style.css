@@ -564,7 +564,7 @@ body {
 }
 
 .page-home .user-id::after {
-  content: "▾";
+  content: "";
   font-size: 18px;
   color: var(--text-muted);
   font-weight: 400;

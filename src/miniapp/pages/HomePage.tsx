@@ -20,7 +20,7 @@ export const HomePage: React.FC = () => {
     }
   }, [userPhone]);
 
-  const userLabel = userPhone ? `${userPhone}-` : "…";
+  const userLabel = userPhone ? `+${userPhone}` : "…";
 
   return (
     <div className="page-home">

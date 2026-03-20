@@ -58,7 +58,7 @@ export const ProfilePage: React.FC = () => {
 
       <div className="account-section">
         <div className="account-id">
-          <Link to="/account">{finalName || "Chưa có"}</Link> <span>›</span>
+          <Link to="/account">{finalName || "Chưa có"}</Link>
         </div>
         <div className="account-sub">Quản lý tài khoản</div>
         <div className="account-phone">
