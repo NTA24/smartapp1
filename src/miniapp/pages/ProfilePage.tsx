@@ -1,16 +1,42 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useMiniApp } from "../context/MiniAppContext";
+import { getAuthCode } from "../services/auth";
+import { getUserInfoByAuthCode } from "../../api/authentication/getUserInfoByAuthCode";
 import { PlusOutlined, UserOutlined, AudioOutlined, DesktopOutlined, AppstoreOutlined, SettingOutlined, MessageOutlined } from "@ant-design/icons";
 
 export const ProfilePage: React.FC = () => {
-  const { userPhone } = useMiniApp();
+  const { userPhone, authModalVisible } = useMiniApp();
+  const [displayName, setDisplayName] = useState<string>("6838309456");
+  const [loadingName, setLoadingName] = useState(false);
+
+  useEffect(() => {
+    if (authModalVisible) return; // đợi user bấm "Cho phép"
+    if (loadingName) return;
+    if (displayName && displayName !== "6838309456") return; // đã có rồi
+
+    setLoadingName(true);
+    (async () => {
+      try {
+        // Lấy authCode từ WindVane JSAPI (chỉ chạy sau khi user đã cho phép)
+        const auth = await getAuthCode(["auth_user"]);
+        const info = await getUserInfoByAuthCode(auth.authCode);
+        const name = String(info.username || info.fullName || "");
+        if (name) setDisplayName(name);
+      } catch {
+        // nếu lỗi thì giữ nguyên số hiển thị mặc định
+      } finally {
+        setLoadingName(false);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authModalVisible]);
 
   return (
     <div className="page-profile">
       <div className="account-section">
         <div className="account-id">
-          <Link to="/account">6838309456</Link> <span>›</span>
+          <Link to="/account">{displayName || "6838309456"}</Link> <span>›</span>
         </div>
         <div className="account-sub">Quản lý tài khoản</div>
         <div className="account-phone">
@@ -25,7 +51,7 @@ export const ProfilePage: React.FC = () => {
         </div>
       </div>
       <div className="card-block">
-        <div className="card-title">6838309456</div>
+        <div className="card-title">{displayName || "6838309456"}</div>
         <div className="card-desc">Thành viên trong gia đình(1)</div>
         <div className="card-actions">
           <button type="button" className="icon-btn" aria-label="Thêm thành viên">

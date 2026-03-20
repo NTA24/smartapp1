@@ -4,7 +4,6 @@ import { MiniAppProvider } from "./context/MiniAppContext";
 import { StatusBar } from "./components/StatusBar";
 import { BottomNav } from "./components/BottomNav";
 import { AuthPermissionModal } from "./components/AuthPermissionModal";
-import { DebugLogPanel } from "./components/DebugLogPanel";
 import { HomePage } from "./pages/HomePage";
 import { ZYAppPage } from "./pages/ZYAppPage";
 import { ProfilePage } from "./pages/ProfilePage";
@@ -19,7 +18,6 @@ function Layout({ children }: { children: React.ReactNode }) {
       <main id="main-content">{children}</main>
       <BottomNav />
       <AuthPermissionModal />
-      <DebugLogPanel />
     </div>
   );
 }
