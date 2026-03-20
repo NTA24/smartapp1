@@ -4,7 +4,7 @@ import { useMiniApp } from "../context/MiniAppContext";
 import { PlusOutlined, UserOutlined, AudioOutlined, DesktopOutlined, AppstoreOutlined, SettingOutlined, MessageOutlined } from "@ant-design/icons";
 
 export const ProfilePage: React.FC = () => {
-  const { userPhone } = useMiniApp();
+  const { userPhone, authModalVisible } = useMiniApp();
   const [loadingName, setLoadingName] = useState(true);
 
   useEffect(() => {
@@ -22,7 +22,7 @@ export const ProfilePage: React.FC = () => {
 
   return (
     <div className="page-profile">
-      {loadingName && (
+      {loadingName && !authModalVisible && (
         <div
           style={{
             position: "fixed",

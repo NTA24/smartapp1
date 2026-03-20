@@ -22,7 +22,7 @@ const initialState: MiniAppState = {
   userPhone: typeof window !== "undefined" ? (window.MINIAPP_USER_PHONE ?? "") : "",
   appId: "",
   apiBase: getApiBase(),
-  authModalVisible: false,
+  authModalVisible: true,
 };
 
 const MiniAppContext = createContext<MiniAppContextValue | null>(null);
@@ -75,7 +75,7 @@ export function MiniAppProvider({ children }: { children: React.ReactNode }) {
     setState((s) => ({ ...s, appId: getMiniAppAppId() }));
   }, []);
 
-  // Khi mở app: đợi WindVane rồi tự lấy phone (không hiện modal "Cho phép")
+  // Khi mở app: đợi WindVane rồi hiển thị modal "Cho phép"
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -96,12 +96,8 @@ export function MiniAppProvider({ children }: { children: React.ReactNode }) {
         setState((s) => ({ ...s, appId: DEFAULT_MINIAPP_APP_ID }));
       }
 
-      try {
-        await requestAuthAndPhone();
-      } finally {
-        // đảm bảo không còn hiển thị modal (nếu có cài đặt khác/late state)
-        setState((s) => ({ ...s, authModalVisible: false }));
-      }
+      // Có WindVane → hiện modal để user bấm Cho phép
+      setState((s) => ({ ...s, authModalVisible: true }));
     })();
     return () => { cancelled = true; };
   }, []);
