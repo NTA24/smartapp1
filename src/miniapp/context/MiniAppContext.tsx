@@ -1,8 +1,9 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { getMiniAppAppId, getApiBase, saveAppId, STORAGE_KEY_APP_ID, DEFAULT_MINIAPP_APP_ID } from "../lib/config";
 import { storeGet } from "../lib/store";
-import { loginMiniApp, getPhoneFromLoginResult, onWindVaneReady } from "../services/auth";
+import { getAuthCode, onWindVaneReady } from "../services/auth";
 import { addLog } from "../lib/debugLog";
+import { getUserInfoByAuthCode } from "../../api/authentication/getUserInfoByAuthCode";
 
 interface MiniAppState {
   userPhone: string;
@@ -45,13 +46,17 @@ export function MiniAppProvider({ children }: { children: React.ReactNode }) {
   const requestAuthAndPhone = useCallback(async () => {
     addLog("requestAuthAndPhone: gọi loginMiniApp");
     try {
-      const data = await loginMiniApp();
-      const phone = getPhoneFromLoginResult(data);
+      // Lấy authCode qua WindVane → gọi user-info theo đúng flow đã hoạt động ở nút "Get user".
+      const auth = await getAuthCode(["USER_NAME", "USER_EMAIL"]);
+      const info = await getUserInfoByAuthCode(auth.authCode);
+
+      // Theo thực tế của bạn: username trả về chính là số điện thoại.
+      const phone = String(info?.username ?? "").trim();
       if (phone) {
         addLog("requestAuthAndPhone: OK, số ĐT=", phone);
         setUserPhone(phone);
       } else {
-        addLog("requestAuthAndPhone: không có số ĐT trong data", data);
+        addLog("requestAuthAndPhone: không có username/số ĐT trong user-info", info);
       }
       // Author: đồng bộ trạng thái quyền sau khi auth xong
       const P = window.MiniAppPermissions;
