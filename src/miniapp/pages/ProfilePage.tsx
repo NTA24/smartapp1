@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useMiniApp } from "../context/MiniAppContext";
 import { getAuthCode } from "../services/auth";
@@ -7,36 +7,92 @@ import { PlusOutlined, UserOutlined, AudioOutlined, DesktopOutlined, AppstoreOut
 
 export const ProfilePage: React.FC = () => {
   const { userPhone, authModalVisible } = useMiniApp();
-  const [displayName, setDisplayName] = useState<string>("6838309456");
-  const [loadingName, setLoadingName] = useState(false);
+  const [displayName, setDisplayName] = useState<string>("");
+  const [loadingName, setLoadingName] = useState(true);
+  const [loadError, setLoadError] = useState<string>("");
+  const didLoadRef = useRef(false);
 
   useEffect(() => {
-    if (authModalVisible) return; // đợi user bấm "Cho phép"
-    if (loadingName) return;
-    if (displayName && displayName !== "6838309456") return; // đã có rồi
+    let cancelled = false;
+    const run = async () => {
+      // Nếu đã load rồi thì không gọi lại.
+      if (didLoadRef.current) return;
+      // Chỉ gọi API sau khi user đã bấm "Cho phép"
+      if (authModalVisible) return;
 
-    setLoadingName(true);
-    (async () => {
+      didLoadRef.current = true;
+      setLoadingName(true);
+      setLoadError("");
+
       try {
-        // Lấy authCode từ WindVane JSAPI (chỉ chạy sau khi user đã cho phép)
-        const auth = await getAuthCode(["auth_user"]);
+        // Ưu tiên scope theo doc (có username + email)
+        const auth = await getAuthCode(["USER_NAME", "USER_EMAIL"]);
         const info = await getUserInfoByAuthCode(auth.authCode);
         const name = String(info.username || info.fullName || "");
         if (name) setDisplayName(name);
-      } catch {
-        // nếu lỗi thì giữ nguyên số hiển thị mặc định
+      } catch (e) {
+        if (cancelled) return;
+        setLoadError(e instanceof Error ? e.message : String(e));
       } finally {
+        if (cancelled) return;
         setLoadingName(false);
       }
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    };
+
+    if (authModalVisible) {
+      // Khi modal auth đang hiện, vẫn hiển thị loading overlay.
+      setLoadingName(true);
+    } else {
+      void run();
+    }
+
+    return () => {
+      cancelled = true;
+    };
   }, [authModalVisible]);
+
+  const finalName = displayName || "6838309456";
 
   return (
     <div className="page-profile">
+      {loadingName && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(255,255,255,0.78)",
+            zIndex: 9997,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 10,
+          }}
+        >
+          <div
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 999,
+              border: "3px solid rgba(0,0,0,0.12)",
+              borderTopColor: "rgba(0,172,193,1)",
+              animation: "zy-spin 0.9s linear infinite",
+            }}
+          />
+          <div style={{ fontSize: 13, fontWeight: 600, color: "#1a2332" }}>
+            Đang tải thông tin...
+          </div>
+          {loadError && (
+            <div style={{ fontSize: 12, color: "#c62828", padding: "0 20px", textAlign: "center" }}>
+              {loadError}
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="account-section">
         <div className="account-id">
-          <Link to="/account">{displayName || "6838309456"}</Link> <span>›</span>
+          <Link to="/account">{finalName}</Link> <span>›</span>
         </div>
         <div className="account-sub">Quản lý tài khoản</div>
         <div className="account-phone">
@@ -51,7 +107,7 @@ export const ProfilePage: React.FC = () => {
         </div>
       </div>
       <div className="card-block">
-        <div className="card-title">{displayName || "6838309456"}</div>
+        <div className="card-title">{finalName}</div>
         <div className="card-desc">Thành viên trong gia đình(1)</div>
         <div className="card-actions">
           <button type="button" className="icon-btn" aria-label="Thêm thành viên">

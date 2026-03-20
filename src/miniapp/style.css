@@ -5074,6 +5074,11 @@ body {
   from { opacity: 0; transform: scale(0.95) translateY(10px); }
   to { opacity: 1; transform: scale(1) translateY(0); }
 }
+
+@keyframes zy-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
 .auth-permission-close {
   position: absolute;
   top: 12px;
