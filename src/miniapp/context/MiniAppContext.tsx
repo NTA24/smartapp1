@@ -4,9 +4,11 @@ import { storeGet } from "../lib/store";
 import { getAuthCode, onWindVaneReady } from "../services/auth";
 import { addLog } from "../lib/debugLog";
 import { getUserInfoByAuthCode } from "../../api/authentication/getUserInfoByAuthCode";
+import { getDevicesByUsername, type SmartBuildingDeviceRecord } from "../services/deviceSync";
 
 interface MiniAppState {
   userPhone: string;
+  devices: SmartBuildingDeviceRecord[];
   appId: string;
   apiBase: string;
   authModalVisible: boolean;
@@ -14,6 +16,8 @@ interface MiniAppState {
 
 interface MiniAppContextValue extends MiniAppState {
   setUserPhone: (phone: string) => void;
+  setDevices: (devices: SmartBuildingDeviceRecord[]) => void;
+  refreshDevices: () => Promise<void>;
   setAuthModalVisible: (v: boolean) => void;
   requestAuthAndPhone: () => Promise<void>;
   saveAppId: (id: string) => void;
@@ -21,6 +25,7 @@ interface MiniAppContextValue extends MiniAppState {
 
 const initialState: MiniAppState = {
   userPhone: typeof window !== "undefined" ? (window.MINIAPP_USER_PHONE ?? "") : "",
+  devices: [],
   appId: "",
   apiBase: getApiBase(),
   authModalVisible: false,
@@ -41,9 +46,28 @@ export function MiniAppProvider({ children }: { children: React.ReactNode }) {
     if (typeof window !== "undefined") (window as unknown as { MINIAPP_USER_PHONE?: string }).MINIAPP_USER_PHONE = phone;
   }, []);
 
+  const setDevices = useCallback((devices: SmartBuildingDeviceRecord[]) => {
+    setState((s) => ({ ...s, devices }));
+  }, []);
+
   const setAuthModalVisible = useCallback((v: boolean) => {
     setState((s) => ({ ...s, authModalVisible: v }));
   }, []);
+
+  const refreshDevices = useCallback(async () => {
+    const username = String((window as unknown as { MINIAPP_USER_PHONE?: string }).MINIAPP_USER_PHONE ?? state.userPhone ?? "").trim();
+    if (!username) {
+      setDevices([]);
+      return;
+    }
+    try {
+      const devices = await getDevicesByUsername(username);
+      setDevices(devices);
+      addLog("refreshDevices: fetched", devices.length, "devices for", username);
+    } catch (e) {
+      addLog("refreshDevices: error", e);
+    }
+  }, [setDevices, state.userPhone]);
 
   const requestAuthAndPhone = useCallback(async () => {
     addLog("requestAuthAndPhone: gọi loginMiniApp");
@@ -57,6 +81,13 @@ export function MiniAppProvider({ children }: { children: React.ReactNode }) {
       if (phone) {
         addLog("requestAuthAndPhone: OK, số ĐT=", phone);
         setUserPhone(phone);
+        try {
+          const devices = await getDevicesByUsername(phone);
+          setDevices(devices);
+          addLog("requestAuthAndPhone: fetched", devices.length, "devices");
+        } catch (e) {
+          addLog("requestAuthAndPhone: get devices error", e);
+        }
       } else {
         addLog("requestAuthAndPhone: không có username/số ĐT trong user-info", info);
       }
@@ -75,7 +106,7 @@ export function MiniAppProvider({ children }: { children: React.ReactNode }) {
     } catch (e) {
       addLog("requestAuthAndPhone: lỗi", e);
     }
-  }, [setUserPhone]);
+  }, [setDevices, setUserPhone]);
 
   const saveAppIdCallback = useCallback((id: string) => {
     saveAppId(id);
@@ -115,6 +146,8 @@ export function MiniAppProvider({ children }: { children: React.ReactNode }) {
     ...state,
     appId: state.appId || getMiniAppAppId(),
     setUserPhone,
+    setDevices,
+    refreshDevices,
     setAuthModalVisible,
     requestAuthAndPhone,
     saveAppId: saveAppIdCallback,

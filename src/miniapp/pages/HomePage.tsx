@@ -6,7 +6,7 @@ import { useMiniApp } from "../context/MiniAppContext";
 
 export const HomePage: React.FC = () => {
   const [menuOpen, setMenuOpen] = useState(false);
-  const { userPhone } = useMiniApp();
+  const { userPhone, devices } = useMiniApp();
   const [loadingUser, setLoadingUser] = useState(true);
 
   useEffect(() => {
@@ -108,22 +108,48 @@ export const HomePage: React.FC = () => {
         style={{ display: menuOpen ? undefined : "none" }}
       />
       <div className="home-device-cards">
-        <DeviceCard
-          deviceId="1"
-          name="Máy lọc không khí thông minh"
-          meta="Thiết bị"
-          statusLabel="Trung bình"
-          icon={<CloudOutlined />}
-          defaultOn={true}
-        />
-        <DeviceCard
-          deviceId="2"
-          name="Đèn thông minh"
-          meta="Thiết bị"
-          statusLabel="Tắt"
-          icon={<BulbOutlined />}
-          defaultOn={false}
-        />
+        {devices.length > 0 ? (
+          devices.map((d, i) => {
+            const type = String(d.deviceType ?? d.device?.type ?? "").toLowerCase();
+            const icon = type.includes("light") || type.includes("đèn") ? <BulbOutlined /> : <CloudOutlined />;
+            const name =
+              String(d.label ?? d.device?.label ?? d.name ?? d.device?.name ?? "").trim() ||
+              `Thiết bị ${i + 1}`;
+            const id =
+              String(d.deviceId ?? d.device?.id?.id ?? `${i + 1}`).trim() ||
+              `${i + 1}`;
+            return (
+              <DeviceCard
+                key={id}
+                deviceId={id}
+                name={name}
+                meta={String(d.deviceType ?? d.device?.type ?? "Thiết bị")}
+                statusLabel="Tắt"
+                icon={icon}
+                defaultOn={false}
+              />
+            );
+          })
+        ) : (
+          <>
+            <DeviceCard
+              deviceId="1"
+              name="Máy lọc không khí thông minh"
+              meta="Thiết bị"
+              statusLabel="Trung bình"
+              icon={<CloudOutlined />}
+              defaultOn={true}
+            />
+            <DeviceCard
+              deviceId="2"
+              name="Đèn thông minh"
+              meta="Thiết bị"
+              statusLabel="Tắt"
+              icon={<BulbOutlined />}
+              defaultOn={false}
+            />
+          </>
+        )}
       </div>
       <div className="edit-wrap">
         <Link to="/edit-room" className="btn-edit">Chỉnh sửa</Link>

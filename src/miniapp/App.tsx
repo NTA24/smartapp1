@@ -9,6 +9,8 @@ import { ProfilePage } from "./pages/ProfilePage";
 import { DevicePage } from "./pages/DevicePage";
 import { DeviceTimerPage } from "./pages/DeviceTimerPage";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
+import { AddDevicePage } from "./pages/AddDevicePage";
+import { MyDevicesPage } from "./pages/MyDevicesPage";
 
 function Layout({ children }: { children: React.ReactNode }) {
   return (
@@ -42,9 +44,9 @@ export default function App() {
             <Route path="/automation/setup" element={<PlaceholderPage title="Tự động hóa" backTo="/automation" />} />
             <Route path="/edit-room" element={<PlaceholderPage title="Chỉnh sửa phòng" backTo="/" />} />
             <Route path="/nav-settings" element={<PlaceholderPage title="Cài đặt điều hướng" backTo="/" />} />
-            <Route path="/add-device" element={<PlaceholderPage title="Thêm thiết bị" backTo="/" />} />
+            <Route path="/add-device" element={<AddDevicePage />} />
             <Route path="/create-manual" element={<PlaceholderPage title="Điều khiển thủ công" backTo="/" />} />
-            <Route path="/my-devices" element={<PlaceholderPage title="Thiết bị của tôi" backTo="/" />} />
+            <Route path="/my-devices" element={<MyDevicesPage />} />
             <Route path="/account" element={<PlaceholderPage title="Quản lý tài khoản" backTo="/profile" />} />
             <Route path="/voice" element={<PlaceholderPage title="Trợ lý thoại" backTo="/profile" />} />
             <Route path="/devices" element={<PlaceholderPage title="Quản lý nhiều thiết bị" backTo="/profile" />} />
