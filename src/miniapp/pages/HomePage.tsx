@@ -6,8 +6,9 @@ import { useMiniApp } from "../context/MiniAppContext";
 
 export const HomePage: React.FC = () => {
   const [menuOpen, setMenuOpen] = useState(false);
-  const { userPhone, devices } = useMiniApp();
+  const { userPhone, devices, refreshDevices } = useMiniApp();
   const [loadingUser, setLoadingUser] = useState(true);
+  const [refreshingDevices, setRefreshingDevices] = useState(false);
 
   useEffect(() => {
     setLoadingUser(!userPhone);
@@ -23,17 +24,29 @@ export const HomePage: React.FC = () => {
   const formatPhone = (phone: string) => {
     const raw = String(phone || "").trim();
     if (!raw) return "";
-    // Nếu backend đã trả dạng quốc tế (+xx...) thì giữ nguyên
-    if (raw.startsWith("+")) return raw;
-    // Chỉ giữ số
+
     let digits = raw.replace(/[^\d]/g, "");
     if (!digits) return "";
-    // VN số thường bắt đầu bằng 0
+
+    // Bỏ mã quốc gia lặp để tránh dạng (+84) 84xxxx...
+    while (digits.startsWith("84")) digits = digits.slice(2);
+    // Dữ liệu nội địa thường bắt đầu bằng 0
     if (digits.startsWith("0")) digits = digits.slice(1);
+    while (digits.startsWith("84")) digits = digits.slice(2);
+
     return `(+84) ${digits}`;
   };
 
   const userLabel = userPhone ? formatPhone(userPhone) : "…";
+
+  const handleRefreshDevices = async () => {
+    setRefreshingDevices(true);
+    try {
+      await refreshDevices();
+    } finally {
+      setRefreshingDevices(false);
+    }
+  };
 
   return (
     <div className="page-home">
@@ -107,6 +120,49 @@ export const HomePage: React.FC = () => {
         onClick={() => setMenuOpen(false)}
         style={{ display: menuOpen ? undefined : "none" }}
       />
+      <div
+        style={{
+          display: "flex",
+          gap: 10,
+          margin: "10px 0 14px",
+        }}
+      >
+        <Link
+          to="/add-device"
+          style={{
+            flex: 1,
+            height: 40,
+            borderRadius: 12,
+            background: "#00acc1",
+            color: "#fff",
+            textDecoration: "none",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontWeight: 700,
+            fontSize: 14,
+          }}
+        >
+          Thêm thiết bị
+        </Link>
+        <button
+          type="button"
+          onClick={handleRefreshDevices}
+          disabled={refreshingDevices}
+          style={{
+            flex: 1,
+            height: 40,
+            borderRadius: 12,
+            border: "1px solid #cfd7e3",
+            background: "#fff",
+            color: "#1a2332",
+            fontWeight: 700,
+            fontSize: 14,
+          }}
+        >
+          {refreshingDevices ? "Đang làm mới..." : "Làm mới thiết bị"}
+        </button>
+      </div>
       <div className="home-device-cards">
         {devices.length > 0 ? (
           devices.map((d, i) => {

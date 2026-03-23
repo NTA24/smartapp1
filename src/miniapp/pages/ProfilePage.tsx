@@ -21,10 +21,13 @@ export const ProfilePage: React.FC = () => {
   const formatPhone = (phone: string) => {
     const raw = String(phone || "").trim();
     if (!raw) return "";
-    if (raw.startsWith("+")) return raw;
+
     let digits = raw.replace(/[^\d]/g, "");
     if (!digits) return "";
+    while (digits.startsWith("84")) digits = digits.slice(2);
     if (digits.startsWith("0")) digits = digits.slice(1);
+    while (digits.startsWith("84")) digits = digits.slice(2);
+
     return `(+84) ${digits}`;
   };
 
