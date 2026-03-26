@@ -1,21 +1,28 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { LeftOutlined } from "@ant-design/icons";
+import { LeftOutlined, RightOutlined } from "@ant-design/icons";
 import { createAndStoreDevice } from "../services/deviceSync";
 import { useMiniApp } from "../context/MiniAppContext";
 
-function getDefaultBody() {
-  return {
-    name: `DEVICE_${Date.now()}`,
-    type: "Temperature Sensor",
-    label: "Room Sensor",
-  };
-}
+type DeviceTemplate = {
+  key: string;
+  title: string;
+  type: string;
+  labelPrefix: string;
+};
+
+const DEVICE_TEMPLATES: DeviceTemplate[] = [
+  { key: "temp", title: "Cảm biến nhiệt độ", type: "Temperature Sensor", labelPrefix: "Temperature Sensor" },
+  { key: "light", title: "Đèn thông minh", type: "Light", labelPrefix: "Smart Light" },
+  { key: "switch", title: "Công tắc thông minh", type: "Switch", labelPrefix: "Smart Switch" },
+];
 
 export const AddDevicePage: React.FC = () => {
   const navigate = useNavigate();
   const { userPhone, refreshDevices } = useMiniApp();
-  const [deviceBodyText, setDeviceBodyText] = useState(() => JSON.stringify(getDefaultBody(), null, 2));
+  const qrInputRef = useRef<HTMLInputElement | null>(null);
+  const [selectedTemplateKey, setSelectedTemplateKey] = useState<string>(DEVICE_TEMPLATES[0].key);
+  const [deviceSerial, setDeviceSerial] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [errorText, setErrorText] = useState("");
   const [successText, setSuccessText] = useState("");
@@ -26,6 +33,24 @@ export const AddDevicePage: React.FC = () => {
     return raw.startsWith("+") ? raw.replace(/[^\d]/g, "") : raw;
   }, [userPhone]);
 
+  const selectedTemplate = useMemo(
+    () => DEVICE_TEMPLATES.find((x) => x.key === selectedTemplateKey) ?? DEVICE_TEMPLATES[0],
+    [selectedTemplateKey],
+  );
+
+  const payload = useMemo(
+    () => ({
+      name: (deviceSerial.trim() || `DEVICE_${Date.now()}`).toUpperCase(),
+      type: selectedTemplate.type,
+      label: `${selectedTemplate.labelPrefix}${deviceSerial.trim() ? ` - ${deviceSerial.trim().toUpperCase()}` : ""}`,
+    }),
+    [deviceSerial, selectedTemplate],
+  );
+
+  const applyTemplate = (tpl: DeviceTemplate) => {
+    setSelectedTemplateKey(tpl.key);
+  };
+
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorText("");
@@ -35,18 +60,14 @@ export const AddDevicePage: React.FC = () => {
       setErrorText("Chưa có username/số điện thoại từ auth.");
       return;
     }
-
-    let parsed: Record<string, unknown>;
-    try {
-      parsed = JSON.parse(deviceBodyText) as Record<string, unknown>;
-    } catch {
-      setErrorText("Payload JSON không hợp lệ.");
+    if (!payload.name || !payload.type) {
+      setErrorText("Thiếu thông tin thiết bị.");
       return;
     }
 
     setSubmitting(true);
     try {
-      const saved = await createAndStoreDevice(username, parsed);
+      const saved = await createAndStoreDevice(username, payload);
       await refreshDevices();
       const id = String(saved.deviceId ?? saved.device?.id?.id ?? "");
       const name = String(saved.name ?? saved.device?.name ?? "");
@@ -58,112 +79,177 @@ export const AddDevicePage: React.FC = () => {
     }
   };
 
+  const onQrPick = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+
+    setErrorText("");
+    setSuccessText("Đã mở camera/chọn ảnh QR.");
+    try {
+      if (!("BarcodeDetector" in window)) {
+        setSuccessText("Đã chụp ảnh QR. Thiết bị chưa hỗ trợ đọc QR tự động, bạn nhập serial thủ công.");
+        return;
+      }
+
+      const DetectorCtor = (window as unknown as { BarcodeDetector?: new (opts?: { formats?: string[] }) => { detect: (input: ImageBitmap) => Promise<Array<{ rawValue?: string }>> } }).BarcodeDetector;
+      if (!DetectorCtor) {
+        setSuccessText("Đã chụp ảnh QR. Thiết bị chưa hỗ trợ đọc QR tự động, bạn nhập serial thủ công.");
+        return;
+      }
+      const detector = new DetectorCtor({ formats: ["qr_code"] });
+      const bitmap = await createImageBitmap(file);
+      const codes = await detector.detect(bitmap);
+      if (codes.length > 0 && codes[0].rawValue) {
+        const value = String(codes[0].rawValue).trim();
+        setDeviceSerial(value);
+        setSuccessText("Đã quét QR thành công, đã điền serial.");
+      } else {
+        setSuccessText("Không đọc được QR từ ảnh, vui lòng nhập serial thủ công.");
+      }
+    } catch {
+      setSuccessText("Không đọc được QR từ ảnh, vui lòng nhập serial thủ công.");
+    }
+  };
+
   return (
-    <div className="page-profile-sub">
-      <div className="sub-page-header">
-        <Link to="/" className="back btn-back">
+    <div className="page-add-device">
+      <div className="add-device-header">
+        <Link to="/" className="back btn-back" aria-label="Quay lại">
           <span className="btn-back-arrow">
             <LeftOutlined />
           </span>
         </Link>
-        <h1 className="sub-page-title">Thêm thiết bị</h1>
+        <h1 className="title">Thêm thiết bị</h1>
       </div>
 
-      <div className="profile-sub-body">
-        <div style={{ color: "#637083", marginBottom: 10 }}>
-          Username: <strong>{username || "Chưa có"}</strong>
+      <div className="add-device-body">
+        <div style={{ color: "#637083", marginBottom: 16 }}>
+          Tài khoản: <strong>{username || "Chưa có username từ Tammi"}</strong>
         </div>
 
-        <form onSubmit={onSubmit} style={{ display: "grid", gap: 10 }}>
-          <label style={{ fontWeight: 600, color: "#1a2332" }}>Payload gửi NewGen (Step 6)</label>
-          <textarea
-            value={deviceBodyText}
-            onChange={(e) => setDeviceBodyText(e.target.value)}
-            rows={12}
-            style={{
-              width: "100%",
-              resize: "vertical",
-              borderRadius: 12,
-              border: "1px solid #d9e1ee",
-              padding: 12,
-              fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
-              fontSize: 12,
-              background: "#fff",
-              color: "#1a2332",
-            }}
+        <div className="add-device-section">
+          <div className="section-title">Chọn nhanh loại thiết bị</div>
+          <div className="section-desc">Chọn loại, sau đó nhập serial là tạo được.</div>
+          <div style={{ display: "grid", gap: 10 }}>
+            {DEVICE_TEMPLATES.map((tpl) => {
+              const active = tpl.key === selectedTemplate.key;
+              return (
+                <button
+                  key={tpl.key}
+                  type="button"
+                  className="add-device-row"
+                  onClick={() => applyTemplate(tpl)}
+                  style={{
+                    width: "100%",
+                    textAlign: "left",
+                    background: active ? "rgba(0,172,193,0.12)" : "#f6f9fc",
+                    border: "none",
+                    borderRadius: 14,
+                  }}
+                >
+                  <div className="row-icon">{active ? "✓" : ""}</div>
+                  <div className="row-text">
+                    <div style={{ fontWeight: 700, color: "#1a2332", fontSize: 15 }}>{tpl.title}</div>
+                    <div style={{ color: "#637083", fontSize: 13 }}>{tpl.type}</div>
+                  </div>
+                  <div className="row-arrow">
+                    <RightOutlined />
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <form onSubmit={onSubmit} className="add-device-section" style={{ marginBottom: 0 }}>
+          <input
+            ref={qrInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            onChange={onQrPick}
+            style={{ display: "none" }}
           />
-
-          <button
-            type="submit"
-            disabled={submitting}
-            style={{
-              height: 42,
-              borderRadius: 12,
-              border: "none",
-              background: "#00acc1",
-              color: "#fff",
-              fontWeight: 700,
-            }}
-          >
-            {submitting ? "Đang tạo thiết bị..." : "Tạo ở NewGen + Lưu SmartBuilding"}
-          </button>
-
           <button
             type="button"
-            onClick={async () => {
-              setErrorText("");
-              setSuccessText("");
-              try {
-                await refreshDevices();
-                setSuccessText("Đã đồng bộ danh sách thiết bị từ SmartBuilding.");
-              } catch (err) {
-                setErrorText(err instanceof Error ? err.message : String(err));
-              }
-            }}
+            onClick={() => qrInputRef.current?.click()}
             style={{
-              height: 40,
+              marginTop: 10,
+              height: 42,
               borderRadius: 12,
-              border: "1px solid #cfd7e3",
-              background: "#fff",
+              background: "#eef3f9",
               color: "#1a2332",
-              fontWeight: 600,
+              textDecoration: "none",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontWeight: 700,
+              fontSize: 14,
+              width: "100%",
+              border: "none",
+              cursor: "pointer",
             }}
           >
-            Chỉ GET danh sách (Step X)
+            Quét QR
           </button>
+          <div style={{ display: "grid", gap: 12, marginTop: 12 }}>
+            <label style={{ fontSize: 13, color: "#637083", fontWeight: 600 }}>Serial / Mã thiết bị</label>
+            <input
+              value={deviceSerial}
+              onChange={(e) => setDeviceSerial(e.target.value)}
+              placeholder="VD: A4B72CCDFF33"
+              style={{ height: 44, borderRadius: 12, border: "none", background: "#f6f9fc", padding: "0 12px", fontSize: 14 }}
+            />
+          </div>
+          <div style={{ marginTop: 8, color: "#637083", fontSize: 12 }}>
+            App sẽ tự tạo payload theo loại bạn đã chọn.
+          </div>
+
+          <div style={{ display: "grid", gap: 10, marginTop: 14 }}>
+            <button
+              type="submit"
+              disabled={submitting}
+              style={{
+                height: 44,
+                borderRadius: 12,
+                border: "none",
+                background: "#00acc1",
+                color: "#fff",
+                fontWeight: 700,
+                fontSize: 15,
+              }}
+            >
+              {submitting ? "Đang thêm thiết bị..." : "Thêm"}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => navigate("/")}
+              style={{
+                height: 40,
+                borderRadius: 10,
+                border: "none",
+                background: "#eef3f9",
+                color: "#1a2332",
+                fontWeight: 600,
+              }}
+            >
+              Về Smart Home
+            </button>
+          </div>
         </form>
 
         {errorText && (
-          <div style={{ marginTop: 12, color: "#d93025", fontWeight: 600 }}>
+          <div style={{ marginTop: 12, color: "#d93025", fontWeight: 600, fontSize: 14 }}>
             {errorText}
           </div>
         )}
         {successText && (
-          <div style={{ marginTop: 12, color: "#128a57", fontWeight: 600 }}>
+          <div style={{ marginTop: 12, color: "#128a57", fontWeight: 600, fontSize: 14 }}>
             {successText}
           </div>
         )}
-
-        <div style={{ marginTop: 12, color: "#637083", fontSize: 12 }}>
-          Sau mỗi lần tạo device, app tự gọi Step 7 để lưu về SmartBuilding theo đúng quy trình.
-        </div>
-        <div style={{ marginTop: 8 }}>
-          <button
-            type="button"
-            onClick={() => navigate("/")}
-            style={{
-              height: 36,
-              borderRadius: 10,
-              border: "1px solid #cfd7e3",
-              background: "#f9fbff",
-              color: "#1a2332",
-              padding: "0 12px",
-              fontWeight: 600,
-            }}
-          >
-            Về Smart Home
-          </button>
-        </div>
       </div>
     </div>
   );

@@ -11,6 +11,7 @@ import { DeviceTimerPage } from "./pages/DeviceTimerPage";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
 import { AddDevicePage } from "./pages/AddDevicePage";
 import { MyDevicesPage } from "./pages/MyDevicesPage";
+import { MiniAppLogPanel } from "./components/MiniAppLogPanel";
 
 function Layout({ children }: { children: React.ReactNode }) {
   return (
@@ -18,6 +19,7 @@ function Layout({ children }: { children: React.ReactNode }) {
       <StatusBar />
       <main id="main-content">{children}</main>
       <BottomNav />
+      <MiniAppLogPanel />
     </div>
   );
 }
