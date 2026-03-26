@@ -1,25 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useMiniApp } from "../context/MiniAppContext";
 import { addLog } from "../lib/debugLog";
+import { getAuthCode } from "../services/auth";
 
-const CAMERA_TOKEN_API = "https://campus.iot-platform.io.vn/api/v1/mini-app/camera-oem/token";
 const ZY_SDK_MODULE_URL = "/ZYApp/js/index.1773823368676.js";
-
-type CameraTokenResponse = {
-  cameraToken?: string;
-  token?: string;
-  accessToken?: string;
-  [key: string]: unknown;
-};
-
-function pickCameraToken(data: CameraTokenResponse): string {
-  const tk =
-    data.cameraToken ??
-    data.token ??
-    data.accessToken ??
-    "";
-  return String(tk).trim();
-}
 
 function makeCallFromCameraByJsapi(token: string): Promise<unknown> {
   return new Promise((resolve, reject) => {
@@ -132,21 +116,14 @@ export const ZYAppPage: React.FC = () => {
 
     try {
       if (!username) throw new Error("Chưa có username (userPhone rỗng)");
-
-      const res = await fetch(CAMERA_TOKEN_API, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ username }),
-      });
-
-      const data = (await res.json().catch(() => ({}))) as CameraTokenResponse;
-      if (!res.ok) throw new Error(`Get camera token HTTP ${res.status}`);
-
-      const tk = pickCameraToken(data);
+      const auth = await getAuthCode(["USER_NAME", "USER_EMAIL"]);
+      const tk = String(auth.authCode ?? "").trim();
+      if (!tk) throw new Error("Không lấy được authCode");
       setCameraToken(tk);
-      setCameraTokenMsg(`Đã gọi API ${CAMERA_TOKEN_API}`);
+      setCameraTokenMsg("Đã lấy authCode từ wv.getAuthCode và gán làm token");
+      addLog("Camera token source: authCode", { tokenPreview: tk.slice(0, 8) + "…" });
     } catch (err) {
-      setCameraTokenMsg(`Gọi API lỗi: ${err instanceof Error ? err.message : String(err)}`);
+      setCameraTokenMsg(`Lấy authCode lỗi: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setCameraTokenLoading(false);
     }
@@ -210,7 +187,7 @@ export const ZYAppPage: React.FC = () => {
                 opacity: cameraTokenLoading ? 0.7 : 1,
               }}
             >
-              {cameraTokenLoading ? "Đang lấy camera token..." : "Get camera token"}
+              {cameraTokenLoading ? "Đang lấy authCode..." : "Get authCode -> token"}
             </button>
           </form>
 
