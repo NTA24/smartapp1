@@ -22,6 +22,14 @@ function makeCallFromCameraByJsapi(token: string): Promise<unknown> {
       "makeCallFromCamera",
       { token },
       (res: any) => {
+        const success = res?.success === true;
+        const msg = String(res?.message ?? "");
+        if (!success) {
+          const errMsg = msg || "makeCallFromCamera failed";
+          addLog("JSAPI makeCallFromCamera FAIL(response.success=false)", res);
+          reject(new Error(errMsg));
+          return;
+        }
         addLog("JSAPI makeCallFromCamera OK", res);
         resolve(res);
       },
@@ -78,19 +86,14 @@ export const ZYAppPage: React.FC = () => {
           resolve();
           return;
         }
-
         const script = document.createElement("script");
         script.id = "zyapp-sdk-module-script";
         script.type = "module";
         script.src = ZY_SDK_MODULE_URL;
         script.async = true;
-
         script.onload = () => resolve();
-        script.onerror = () => resolve(); // vẫn resolve để tránh treo UI
-
+        script.onerror = () => resolve(); 
         document.head.appendChild(script);
-
-        // Fallback: module onload sometimes may not fire in some webviews.
         window.setTimeout(() => resolve(), 2000);
       });
 
