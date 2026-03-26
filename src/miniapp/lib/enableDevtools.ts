@@ -11,6 +11,8 @@
  */
 
 let erudaInitDone = false;
+let tracingInitDone = false;
+let vconsoleInitDone = false;
 
 function parseQueryFromLocation(): URLSearchParams {
   const search = new URLSearchParams(window.location.search);
@@ -83,4 +85,117 @@ export async function initMiniAppDevtools(): Promise<void> {
   } catch (e) {
     console.warn("[MiniApp devtools] eruda.init failed", e);
   }
+}
+
+/**
+ * vConsole cho mobile WebView (UI giống ảnh bạn gửi).
+ * Ưu tiên vConsole vì tương thích mini app tốt hơn; có guard tránh "already exists".
+ */
+export async function initMiniAppVConsole(): Promise<void> {
+  if (typeof window === "undefined" || !isMiniAppDevtoolsEnabled()) return;
+  if (vconsoleInitDone) return;
+
+  const w = window as unknown as {
+    VConsole?: new (opts?: Record<string, unknown>) => unknown;
+    vConsole?: unknown;
+    __miniapp_vconsole__?: unknown;
+  };
+
+  // Nếu host app/SDK đã cài sẵn vConsole thì không khởi tạo lại.
+  if (w.vConsole || w.__miniapp_vconsole__) {
+    vconsoleInitDone = true;
+    return;
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    const existed = document.getElementById("miniapp-vconsole-script");
+    if (existed) {
+      resolve();
+      return;
+    }
+    const s = document.createElement("script");
+    s.id = "miniapp-vconsole-script";
+    s.src = "https://unpkg.com/vconsole@3.15.1/dist/vconsole.min.js";
+    s.async = true;
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error("Failed to load vconsole.min.js"));
+    document.head.appendChild(s);
+  }).catch((e) => {
+    console.warn("[MiniApp devtools] vConsole load failed", e);
+  });
+
+  try {
+    const VC = w.VConsole;
+    if (VC && !w.vConsole && !w.__miniapp_vconsole__) {
+      w.__miniapp_vconsole__ = new VC({ maxLogNumber: 1000 });
+      console.info("[MiniApp] vConsole enabled.");
+    }
+    vconsoleInitDone = true;
+  } catch (e) {
+    console.warn("[MiniApp devtools] vConsole init failed", e);
+  }
+}
+
+/** Trace fetch + WindVane.call để bắt lỗi 401 / JSAPI khi Mini App nhảy màn. */
+export function initMiniAppTracing(): void {
+  if (typeof window === "undefined" || tracingInitDone) return;
+  if (!isMiniAppLogUiEnabled() && !isMiniAppDevtoolsEnabled()) return;
+  tracingInitDone = true;
+
+  // Lazy import to avoid circulars at module init
+  import("./debugLog").then(({ addLog }) => {
+    addLog("Tracing enabled: fetch + WindVane.call");
+
+    const w = window as unknown as {
+      WindVane?: {
+        call?: (className: string, method: string, params: unknown, ok?: (res: unknown) => void, err?: (e: unknown) => void) => void;
+      };
+      __miniapp_fetch_wrapped__?: boolean;
+      __miniapp_wv_wrapped__?: boolean;
+    };
+
+    if (!w.__miniapp_fetch_wrapped__ && typeof window.fetch === "function") {
+      const origFetch = window.fetch.bind(window);
+      window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+        const method = String(init?.method ?? "GET").toUpperCase();
+        addLog("[TRACE fetch req]", method, url);
+        const res = await origFetch(input, init);
+        addLog("[TRACE fetch res]", method, url, "status=", res.status);
+        if (res.status === 401) {
+          try {
+            const text = await res.clone().text();
+            addLog("[TRACE fetch 401 body]", text.slice(0, 600));
+          } catch {
+            addLog("[TRACE fetch 401 body] <unreadable>");
+          }
+        }
+        return res;
+      };
+      w.__miniapp_fetch_wrapped__ = true;
+    }
+
+    if (!w.__miniapp_wv_wrapped__ && typeof w.WindVane?.call === "function") {
+      const origCall = w.WindVane.call.bind(w.WindVane);
+      w.WindVane.call = (className, method, params, ok, err) => {
+        addLog("[TRACE WV req]", `${className}.${method}`, params ?? {});
+        return origCall(
+          className,
+          method,
+          params,
+          (res: unknown) => {
+            addLog("[TRACE WV ok]", `${className}.${method}`, res ?? {});
+            ok?.(res);
+          },
+          (e: unknown) => {
+            addLog("[TRACE WV err]", `${className}.${method}`, e ?? {});
+            err?.(e);
+          },
+        );
+      };
+      w.__miniapp_wv_wrapped__ = true;
+    }
+  }).catch(() => {
+    // ignore
+  });
 }
