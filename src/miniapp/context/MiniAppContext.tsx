@@ -6,6 +6,26 @@ import { addLog } from "../lib/debugLog";
 import { getUserInfoByAuthCode } from "../../api/authentication/getUserInfoByAuthCode";
 import { getDevicesByUsername, type SmartBuildingDeviceRecord } from "../services/deviceSync";
 
+const ZYAPP_CAMERA_TOKEN_STORAGE_KEY = "zyapp_camera_token_response";
+
+function extractCameraToken(payload: unknown): string {
+  if (!payload || typeof payload !== "object") return "";
+  const p = payload as Record<string, unknown>;
+  const tokenCandidates = [
+    p.cameraToken,
+    p.token,
+    (p.data as Record<string, unknown> | undefined)?.cameraToken,
+    (p.data as Record<string, unknown> | undefined)?.token,
+    (p.result as Record<string, unknown> | undefined)?.cameraToken,
+    (p.result as Record<string, unknown> | undefined)?.token,
+  ];
+  for (const candidate of tokenCandidates) {
+    const v = String(candidate ?? "").trim();
+    if (v) return v;
+  }
+  return "";
+}
+
 interface MiniAppState {
   userPhone: string;
   devices: SmartBuildingDeviceRecord[];
@@ -70,11 +90,28 @@ export function MiniAppProvider({ children }: { children: React.ReactNode }) {
   }, [setDevices, state.userPhone]);
 
   const requestAuthAndPhone = useCallback(async () => {
-    addLog("requestAuthAndPhone: gọi loginMiniApp");
+    addLog("[CHECK][AUTH_CODE] start getAuthCode via wv.getAuthCode");
     try {
-      // Lấy authCode qua WindVane → gọi user-info theo đúng flow đã hoạt động ở nút "Get user".
       const auth = await getAuthCode(["USER_NAME", "USER_EMAIL"]);
+      addLog("[CHECK][AUTH_CODE] success", {
+        hasAuthCode: Boolean(String(auth?.authCode ?? "").trim()),
+        authCodePreview: String(auth?.authCode ?? "").slice(0, 8) + "…",
+      });
+      addLog("[CHECK][USER_INFO_API] request POST /api/v1/mini-app/oauth/user-info", {
+        hasAuthCode: Boolean(String(auth?.authCode ?? "").trim()),
+      });
       const info = await getUserInfoByAuthCode(auth.authCode);
+      addLog("[CHECK][USER_INFO_API] response", info);
+      try {
+        sessionStorage.setItem(ZYAPP_CAMERA_TOKEN_STORAGE_KEY, JSON.stringify(info));
+        const token = extractCameraToken(info);
+        addLog("[CHECK][USER_INFO_API] cameraToken extracted", {
+          hasCameraToken: Boolean(token),
+          tokenPreview: token ? token.slice(0, 8) + "…" : "",
+        });
+      } catch (e) {
+        addLog("[CHECK][USER_INFO_API] store response error", e);
+      }
 
       // Theo thực tế của bạn: username trả về chính là số điện thoại.
       const phone = String(info?.username ?? "").trim();
@@ -89,7 +126,7 @@ export function MiniAppProvider({ children }: { children: React.ReactNode }) {
           addLog("requestAuthAndPhone: get devices error", e);
         }
       } else {
-        addLog("requestAuthAndPhone: không có username/số ĐT trong user-info", info);
+        addLog("[CHECK][USER_INFO_API] username missing in response", info);
       }
       // Author: đồng bộ trạng thái quyền sau khi auth xong
       const P = window.MiniAppPermissions;
@@ -104,7 +141,7 @@ export function MiniAppProvider({ children }: { children: React.ReactNode }) {
         }
       }
     } catch (e) {
-      addLog("requestAuthAndPhone: lỗi", e);
+      addLog("[CHECK][AUTH_FLOW] error", e);
     }
   }, [setDevices, setUserPhone]);
 

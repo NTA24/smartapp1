@@ -37,7 +37,10 @@ function extractCameraToken(payload: unknown): string {
 
 function makeCallFromCameraByJsapi(token: string): Promise<unknown> {
   return new Promise((resolve, reject) => {
-    addLog("JSAPI makeCallFromCamera → IOTPlatFormService.makeCallFromCamera", { token: token.slice(0, 8) + "…" });
+    addLog("[CHECK][JSAPI_PAYLOAD] IOTPlatFormService.makeCallFromCamera payload", {
+      cameraTokenPreview: token.slice(0, 8) + "…",
+      hasCameraToken: Boolean(token),
+    });
     const call = (window as any)?.WindVane?.call as
       | ((className: string, method: string, params: any, ok: (res: any) => void, err: (e: any) => void) => void)
       | undefined;
@@ -56,11 +59,11 @@ function makeCallFromCameraByJsapi(token: string): Promise<unknown> {
         const msg = String(res?.message ?? "");
         if (!success) {
           const errMsg = msg || "makeCallFromCamera failed";
-          addLog("JSAPI makeCallFromCamera FAIL(response.success=false)", res);
+          addLog("[CHECK][JSAPI_CALL] failed (response.success=false)", res);
           reject(new Error(errMsg));
           return;
         }
-        addLog("JSAPI makeCallFromCamera OK", res);
+        addLog("[CHECK][JSAPI_CALL] success", res);
         resolve(res);
       },
       (err: any) => {
@@ -70,7 +73,7 @@ function makeCallFromCameraByJsapi(token: string): Promise<unknown> {
             : typeof err === "string"
               ? err
               : JSON.stringify(err ?? {});
-        addLog("JSAPI makeCallFromCamera ERR", msg);
+        addLog("[CHECK][JSAPI_CALL] error callback", msg);
         reject(new Error(msg || "makeCallFromCamera failed"));
       },
     );
@@ -140,7 +143,7 @@ export const ZYAppPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    // Ưu tiên dùng token đã lấy khi click tab ZYApp (BottomNav lưu vào sessionStorage).
+    // Dùng token đã lưu từ flow requestAuthAndPhone -> getUserInfoByAuthCode.
     try {
       const raw = sessionStorage.getItem(ZYAPP_CAMERA_TOKEN_STORAGE_KEY);
       if (!raw) return;
@@ -148,12 +151,12 @@ export const ZYAppPage: React.FC = () => {
       const tokenFromApi = extractCameraToken(parsed);
       if (!tokenFromApi) return;
       setCameraToken(tokenFromApi);
-      setCameraTokenMsg("Đã nhận cameraToken từ API camera-oem/token (khi mở tab ZYApp).");
-      addLog("Camera token source: camera-oem/token", {
+      setCameraTokenMsg("Đã nhận cameraToken từ response user-info (flow requestAuthAndPhone).");
+      addLog("[CHECK][USER_INFO_API] cameraToken loaded for JSAPI", {
         tokenPreview: tokenFromApi.slice(0, 8) + "…",
       });
     } catch (err) {
-      addLog("Không đọc được camera token từ sessionStorage", err);
+      addLog("[CHECK][USER_INFO_API] failed to read stored response", err);
     }
   }, []);
 
@@ -172,7 +175,7 @@ export const ZYAppPage: React.FC = () => {
       if (!tk) throw new Error("Không lấy được authCode");
       setCameraToken(tk);
       setCameraTokenMsg("Đã refresh cameraToken từ authCode (wv.getAuthCode).");
-      addLog("Camera token source: authCode", { tokenPreview: tk.slice(0, 8) + "…" });
+      addLog("[CHECK][AUTH_CODE] refresh button got authCode", { authCodePreview: tk.slice(0, 8) + "…" });
     } catch (err) {
       setCameraTokenMsg(`Refresh cameraToken từ authCode lỗi: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
@@ -188,10 +191,10 @@ export const ZYAppPage: React.FC = () => {
       jsapiStatus: "calling",
       jsapiCalledAt: new Date().toISOString(),
     });
-    addLog("[CAMERA_FLOW] calling JSAPI makeCallFromCamera");
+    addLog("[CHECK][JSAPI_CALL] start makeCallFromCamera");
     try {
       if (!cameraToken) {
-        throw new Error("Chưa có cameraToken. Hãy mở lại tab ZYApp để lấy từ API, hoặc bấm 'Refresh token từ authCode'.");
+        throw new Error("Chưa có cameraToken từ flow requestAuthAndPhone/user-info. Hãy auth lại hoặc bấm 'Refresh token từ authCode'.");
       }
       if (!sdkLoaded) throw new Error("SDK camera chưa nạp xong. Vui lòng chờ vài giây rồi bấm lại.");
       const res = await makeCallFromCameraByJsapi(cameraToken);
@@ -201,14 +204,14 @@ export const ZYAppPage: React.FC = () => {
         jsapiStatus: "success",
         jsapiResponseAt: new Date().toISOString(),
       });
-      addLog("[CAMERA_FLOW] JSAPI makeCallFromCamera success");
+      addLog("[CHECK][JSAPI_CALL] completed successfully");
     } catch (err) {
       setCameraCallMsg(`makeCallFromCamera lỗi: ${err instanceof Error ? err.message : String(err)}`);
       updateCameraFlowTrace({
         jsapiStatus: "error",
         jsapiError: err instanceof Error ? err.message : String(err),
       });
-      addLog("[CAMERA_FLOW] JSAPI makeCallFromCamera error", err instanceof Error ? err.message : String(err));
+      addLog("[CHECK][JSAPI_CALL] completed with error", err instanceof Error ? err.message : String(err));
     } finally {
       setCameraCallLoading(false);
     }

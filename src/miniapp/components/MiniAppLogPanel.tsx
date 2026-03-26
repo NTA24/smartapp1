@@ -6,7 +6,8 @@ import { isMiniAppLogUiEnabled } from "../lib/enableDevtools";
  * Panel log từ addLog() — bật bằng VITE_ENABLE_MINIAPP_LOG_UI / ?logui=1 / DEV.
  */
 export const MiniAppLogPanel: React.FC = () => {
-  const [open, setOpen] = useState(true);
+  // Mặc định ẩn để không che UI Camera, bật khi cần debug.
+  const [open, setOpen] = useState(false);
   const [lines, setLines] = useState<string[]>(() => getLogs());
 
   useEffect(() => {
