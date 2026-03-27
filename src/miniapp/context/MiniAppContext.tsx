@@ -5,12 +5,13 @@ import { getAuthCode, onWindVaneReady } from "../services/auth";
 import { addLog } from "../lib/debugLog";
 import { getPhoneFromUserInfo, getUserInfoByAuthCode } from "../../api/authentication/getUserInfoByAuthCode";
 import { getDevicesByUsername, type SmartBuildingDeviceRecord } from "../services/deviceSync";
-import { extractCameraToken } from "../utils/cameraFlow";
+import { extractCameraToken, extractCameraUIDs } from "../utils/cameraFlow";
 import { ZYAPP_CAMERA_TOKEN_STORAGE_KEY } from "../lib/storageKeys";
 
 interface MiniAppState {
   userPhone: string;
   cameraToken: string;
+  cameraUIDs: string[];
   devices: SmartBuildingDeviceRecord[];
   appId: string;
   apiBase: string;
@@ -32,6 +33,7 @@ interface MiniAppContextValue extends MiniAppState {
 const initialState: MiniAppState = {
   userPhone: typeof window !== "undefined" ? (window.MINIAPP_USER_PHONE ?? "") : "",
   cameraToken: "",
+  cameraUIDs: [],
   devices: [],
   appId: "",
   apiBase: getApiBase(),
@@ -42,13 +44,17 @@ const initialState: MiniAppState = {
 
 const MiniAppContext = createContext<MiniAppContextValue | null>(null);
 
-function hydrateStoredCameraToken(): string {
+function hydrateStoredCameraData(): { cameraToken: string; cameraUIDs: string[] } {
   try {
     const raw = sessionStorage.getItem(ZYAPP_CAMERA_TOKEN_STORAGE_KEY);
-    if (!raw) return "";
-    return extractCameraToken(JSON.parse(raw) as unknown);
+    if (!raw) return { cameraToken: "", cameraUIDs: [] };
+    const parsed = JSON.parse(raw) as unknown;
+    return {
+      cameraToken: extractCameraToken(parsed),
+      cameraUIDs: extractCameraUIDs(parsed),
+    };
   } catch {
-    return "";
+    return { cameraToken: "", cameraUIDs: [] };
   }
 }
 
@@ -56,7 +62,7 @@ export function MiniAppProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<MiniAppState>(() => ({
     ...initialState,
     appId: getMiniAppAppId(),
-    cameraToken: hydrateStoredCameraToken(),
+    ...hydrateStoredCameraData(),
   }));
 
   const didRequestRef = useRef(false);
@@ -110,15 +116,17 @@ export function MiniAppProvider({ children }: { children: React.ReactNode }) {
       addLog("[CHECK][USER_INFO_API] response", info);
       const phone = getPhoneFromUserInfo(info);
       const camToken = extractCameraToken(info);
+      const camUIDs = extractCameraUIDs(info);
       addLog("[CHECK][USER_INFO_API] phone & cameraToken extracted", {
         hasPhone: Boolean(phone),
         phonePreview: phone ? phone.slice(0, 4) + "***" : "",
         hasCameraToken: Boolean(camToken),
         tokenPreview: camToken ? camToken.slice(0, 8) + "…" : "",
+        cameraUIDCount: camUIDs.length,
       });
 
-      if (camToken) {
-        setState((s) => ({ ...s, cameraToken: camToken }));
+      if (camToken || camUIDs.length > 0) {
+        setState((s) => ({ ...s, cameraToken: camToken, cameraUIDs: camUIDs }));
         try {
           sessionStorage.setItem(ZYAPP_CAMERA_TOKEN_STORAGE_KEY, JSON.stringify(info));
         } catch (e) {

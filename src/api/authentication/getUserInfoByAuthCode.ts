@@ -12,7 +12,6 @@ export interface UserInfoResponse {
     msisdn?: string;
     [key: string]: unknown;
   };
-  // API có thể trả thêm field khác
   [key: string]: unknown;
 }
 
