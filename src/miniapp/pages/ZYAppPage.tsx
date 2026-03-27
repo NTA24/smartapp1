@@ -122,7 +122,7 @@ export const ZYAppPage: React.FC = () => {
 
     try {
       if (!username) throw new Error("Chưa có username (userPhone rỗng)");
-      const auth = await getAuthCode(["USER_NAME", "USER_EMAIL"]);
+      const auth = await getAuthCode();
       const tk = String(auth.authCode ?? "").trim();
       if (!tk) throw new Error("Không lấy được authCode");
       setCameraToken(tk);

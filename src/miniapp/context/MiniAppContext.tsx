@@ -84,7 +84,7 @@ export function MiniAppProvider({ children }: { children: React.ReactNode }) {
     addLog("[CHECK][AUTH_CODE] start getAuthCode via wv.getAuthCode");
     setState((s) => ({ ...s, authLoading: true, authError: "" }));
     try {
-      const auth = await getAuthCode(["USER_NAME", "USER_EMAIL"]);
+      const auth = await getAuthCode();
       addLog("[CHECK][AUTH_CODE] success", {
         hasAuthCode: Boolean(String(auth?.authCode ?? "").trim()),
         authCodePreview: String(auth?.authCode ?? "").slice(0, 8) + "…",
