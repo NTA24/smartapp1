@@ -1,38 +1,20 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useMiniApp } from "../context/MiniAppContext";
 import { addLog } from "../lib/debugLog";
-import { getAuthCode } from "../services/auth";
+import { getAuthCode, isWindVaneReady, onWindVaneReady } from "../services/auth";
+import { extractCameraToken, updateCameraFlowTrace } from "../utils/cameraFlow";
+import { ZYAPP_CAMERA_TOKEN_STORAGE_KEY } from "../lib/storageKeys";
 
-const ZY_SDK_MODULE_URL = "/ZYApp/js/index.1773823368676.js";
-const ZYAPP_CAMERA_TOKEN_STORAGE_KEY = "zyapp_camera_token_response";
-const CAMERA_FLOW_TRACE_KEY = "zyapp_camera_flow_trace";
-
-function updateCameraFlowTrace(patch: Record<string, unknown>) {
-  try {
-    const prevRaw = sessionStorage.getItem(CAMERA_FLOW_TRACE_KEY);
-    const prev = prevRaw ? (JSON.parse(prevRaw) as Record<string, unknown>) : {};
-    sessionStorage.setItem(CAMERA_FLOW_TRACE_KEY, JSON.stringify({ ...prev, ...patch }));
-  } catch {
-    // Ignore storage errors.
-  }
+interface CameraJsapiResponse {
+  success?: boolean;
+  message?: string;
+  [key: string]: unknown;
 }
 
-function extractCameraToken(payload: unknown): string {
-  if (!payload || typeof payload !== "object") return "";
-  const p = payload as Record<string, unknown>;
-  const tokenCandidates = [
-    p.cameraToken,
-    p.token,
-    (p.data as Record<string, unknown> | undefined)?.cameraToken,
-    (p.data as Record<string, unknown> | undefined)?.token,
-    (p.result as Record<string, unknown> | undefined)?.cameraToken,
-    (p.result as Record<string, unknown> | undefined)?.token,
-  ];
-  for (const candidate of tokenCandidates) {
-    const v = String(candidate ?? "").trim();
-    if (v) return v;
-  }
-  return "";
+function getErrorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  if (typeof err === "string") return err;
+  return JSON.stringify(err ?? {});
 }
 
 function makeCallFromCameraByJsapi(token: string): Promise<unknown> {
@@ -41,9 +23,7 @@ function makeCallFromCameraByJsapi(token: string): Promise<unknown> {
       cameraTokenPreview: token.slice(0, 8) + "…",
       hasCameraToken: Boolean(token),
     });
-    const call = (window as any)?.WindVane?.call as
-      | ((className: string, method: string, params: any, ok: (res: any) => void, err: (e: any) => void) => void)
-      | undefined;
+    const call = window.WindVane?.call;
 
     if (typeof call !== "function") {
       reject(new Error("WindVane.call is not available (not running in SuperApp/WebView?)"));
@@ -54,25 +34,21 @@ function makeCallFromCameraByJsapi(token: string): Promise<unknown> {
       "IOTPlatFormService",
       "makeCallFromCamera",
       { token },
-      (res: any) => {
-        const success = res?.success === true;
-        const msg = String(res?.message ?? "");
+      (res: unknown) => {
+        const payload = (res && typeof res === "object" ? res : {}) as CameraJsapiResponse;
+        const success = payload.success === true;
+        const msg = String(payload.message ?? "");
         if (!success) {
           const errMsg = msg || "makeCallFromCamera failed";
-          addLog("[CHECK][JSAPI_CALL] failed (response.success=false)", res);
+          addLog("[CHECK][JSAPI_CALL] failed (response.success=false)", payload);
           reject(new Error(errMsg));
           return;
         }
-        addLog("[CHECK][JSAPI_CALL] success", res);
-        resolve(res);
+        addLog("[CHECK][JSAPI_CALL] success", payload);
+        resolve(payload);
       },
-      (err: any) => {
-        const msg =
-          err instanceof Error
-            ? err.message
-            : typeof err === "string"
-              ? err
-              : JSON.stringify(err ?? {});
+      (err: unknown) => {
+        const msg = getErrorMessage(err);
         addLog("[CHECK][JSAPI_CALL] error callback", msg);
         reject(new Error(msg || "makeCallFromCamera failed"));
       },
@@ -83,8 +59,7 @@ function makeCallFromCameraByJsapi(token: string): Promise<unknown> {
 export const ZYAppPage: React.FC = () => {
   const { userPhone } = useMiniApp();
 
-  const [sdkLoaded, setSdkLoaded] = useState(false);
-  const [sdkMsg, setSdkMsg] = useState("");
+  const [bridgeMsg, setBridgeMsg] = useState("");
 
   const [cameraTokenLoading, setCameraTokenLoading] = useState(false);
   const [cameraToken, setCameraToken] = useState("");
@@ -101,42 +76,19 @@ export const ZYAppPage: React.FC = () => {
 
   useEffect(() => {
     let cancelled = false;
-
-    async function loadSdkOnce() {
-      // Best-effort: avoid re-injecting module on re-render/navigation
-      const win = window as unknown as { __ZYAPP_SDK_LOADED__?: boolean };
-      if (win.__ZYAPP_SDK_LOADED__) {
-        setSdkLoaded(true);
-        setSdkMsg("SDK camera đã được nạp sẵn.");
-        return;
-      }
-
-      setSdkMsg("Đang nạp SDK camera (module)..."); // best-effort
-
-      await new Promise<void>((resolve) => {
-        const existing = document.getElementById("zyapp-sdk-module-script");
-        if (existing) {
-          resolve();
-          return;
-        }
-        const script = document.createElement("script");
-        script.id = "zyapp-sdk-module-script";
-        script.type = "module";
-        script.src = ZY_SDK_MODULE_URL;
-        script.async = true;
-        script.onload = () => resolve();
-        script.onerror = () => resolve(); 
-        document.head.appendChild(script);
-        window.setTimeout(() => resolve(), 2000);
+    setBridgeMsg("Đang kiểm tra WindVane (JSAPI native)…");
+    void onWindVaneReady()
+      .then(() => {
+        if (cancelled) return;
+        setBridgeMsg(
+          isWindVaneReady()
+            ? "WindVane sẵn sàng — luồng camera dùng IOTPlatFormService.makeCallFromCamera (native)."
+            : "WindVane không khả dụng.",
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setBridgeMsg("Không đợi được WindVane (có thể không chạy trong Super App).");
       });
-
-      if (cancelled) return;
-      (window as unknown as { __ZYAPP_SDK_LOADED__?: boolean }).__ZYAPP_SDK_LOADED__ = true;
-      setSdkLoaded(true);
-      setSdkMsg("SDK camera đã nạp xong (best-effort).");
-    }
-
-    if (typeof window !== "undefined") void loadSdkOnce();
     return () => {
       cancelled = true;
     };
@@ -196,7 +148,10 @@ export const ZYAppPage: React.FC = () => {
       if (!cameraToken) {
         throw new Error("Chưa có cameraToken từ flow requestAuthAndPhone/user-info. Hãy auth lại hoặc bấm 'Refresh token từ authCode'.");
       }
-      if (!sdkLoaded) throw new Error("SDK camera chưa nạp xong. Vui lòng chờ vài giây rồi bấm lại.");
+      await onWindVaneReady();
+      if (!isWindVaneReady()) {
+        throw new Error("WindVane chưa sẵn sàng — không gọi được makeCallFromCamera.");
+      }
       const res = await makeCallFromCameraByJsapi(cameraToken);
       setCameraCallMsg("Đã gọi JSAPI makeCallFromCamera bằng cameraToken hiện tại.");
       setCameraCallResult(JSON.stringify(res, null, 2));
@@ -232,12 +187,12 @@ export const ZYAppPage: React.FC = () => {
         {/* Camera JSAPI */}
         <div style={{ marginTop: 18, paddingTop: 12, borderTop: "1px solid #eef1f5" }}>
           <div style={{ fontWeight: 700, color: "#1a2332", marginBottom: 8, fontSize: 14 }}>
-            Camera JSAPI (SDK)
+            Camera JSAPI (native)
           </div>
 
-          {!!sdkMsg && (
+          {!!bridgeMsg && (
             <div style={{ marginTop: 2, color: "#637083", fontSize: 12, fontWeight: 600 }}>
-              {sdkMsg}
+              {bridgeMsg}
             </div>
           )}
 

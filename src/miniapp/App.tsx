@@ -13,6 +13,36 @@ import { AddDevicePage } from "./pages/AddDevicePage";
 import { MyDevicesPage } from "./pages/MyDevicesPage";
 import { MiniAppLogPanel } from "./components/MiniAppLogPanel";
 
+type PlaceholderRoute = {
+  path: string;
+  title: string;
+  backTo: string;
+};
+
+const PLACEHOLDER_ROUTES: PlaceholderRoute[] = [
+  { path: "/device/:deviceId/timer/add", title: "Thêm hẹn giờ", backTo: "/" },
+  { path: "/device/:deviceId/timer/add/action", title: "Hành động hẹn giờ", backTo: "/" },
+  { path: "/device/:deviceId/automation", title: "Tự động hóa", backTo: "/" },
+  { path: "/shared", title: "Đã chia sẻ", backTo: "/" },
+  { path: "/store", title: "Cửa hàng", backTo: "/" },
+  { path: "/automation", title: "Tự động", backTo: "/" },
+  { path: "/automation/log", title: "Nhật ký", backTo: "/automation" },
+  { path: "/automation/scan", title: "Quét", backTo: "/automation" },
+  { path: "/automation/setup", title: "Tự động hóa", backTo: "/automation" },
+  { path: "/edit-room", title: "Chỉnh sửa phòng", backTo: "/" },
+  { path: "/nav-settings", title: "Cài đặt điều hướng", backTo: "/" },
+  { path: "/create-manual", title: "Điều khiển thủ công", backTo: "/" },
+  { path: "/account", title: "Quản lý tài khoản", backTo: "/profile" },
+  { path: "/voice", title: "Trợ lý thoại", backTo: "/profile" },
+  { path: "/devices", title: "Quản lý nhiều thiết bị", backTo: "/profile" },
+  { path: "/devices/utilities", title: "Tiện ích", backTo: "/devices" },
+  { path: "/hub", title: "Hub & cổng", backTo: "/profile" },
+  { path: "/settings", title: "Cài đặt", backTo: "/profile" },
+  { path: "/notification-settings", title: "Cài đặt thông báo", backTo: "/settings" },
+  { path: "/notifications", title: "Thông báo", backTo: "/" },
+  { path: "/help", title: "Trợ giúp và phản hồi", backTo: "/profile" },
+];
+
 function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div id="app">
@@ -35,29 +65,15 @@ export default function App() {
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/device/:deviceId" element={<DevicePage />} />
             <Route path="/device/:deviceId/timer" element={<DeviceTimerPage />} />
-            <Route path="/device/:deviceId/timer/add" element={<PlaceholderPage title="Thêm hẹn giờ" backTo="/" />} />
-            <Route path="/device/:deviceId/timer/add/action" element={<PlaceholderPage title="Hành động hẹn giờ" backTo="/" />} />
-            <Route path="/device/:deviceId/automation" element={<PlaceholderPage title="Tự động hóa" backTo="/" />} />
-            <Route path="/shared" element={<PlaceholderPage title="Đã chia sẻ" backTo="/" />} />
-            <Route path="/store" element={<PlaceholderPage title="Cửa hàng" backTo="/" />} />
-            <Route path="/automation" element={<PlaceholderPage title="Tự động" backTo="/" />} />
-            <Route path="/automation/log" element={<PlaceholderPage title="Nhật ký" backTo="/automation" />} />
-            <Route path="/automation/scan" element={<PlaceholderPage title="Quét" backTo="/automation" />} />
-            <Route path="/automation/setup" element={<PlaceholderPage title="Tự động hóa" backTo="/automation" />} />
-            <Route path="/edit-room" element={<PlaceholderPage title="Chỉnh sửa phòng" backTo="/" />} />
-            <Route path="/nav-settings" element={<PlaceholderPage title="Cài đặt điều hướng" backTo="/" />} />
             <Route path="/add-device" element={<AddDevicePage />} />
-            <Route path="/create-manual" element={<PlaceholderPage title="Điều khiển thủ công" backTo="/" />} />
             <Route path="/my-devices" element={<MyDevicesPage />} />
-            <Route path="/account" element={<PlaceholderPage title="Quản lý tài khoản" backTo="/profile" />} />
-            <Route path="/voice" element={<PlaceholderPage title="Trợ lý thoại" backTo="/profile" />} />
-            <Route path="/devices" element={<PlaceholderPage title="Quản lý nhiều thiết bị" backTo="/profile" />} />
-            <Route path="/devices/utilities" element={<PlaceholderPage title="Tiện ích" backTo="/devices" />} />
-            <Route path="/hub" element={<PlaceholderPage title="Hub & cổng" backTo="/profile" />} />
-            <Route path="/settings" element={<PlaceholderPage title="Cài đặt" backTo="/profile" />} />
-            <Route path="/notification-settings" element={<PlaceholderPage title="Cài đặt thông báo" backTo="/settings" />} />
-            <Route path="/notifications" element={<PlaceholderPage title="Thông báo" backTo="/" />} />
-            <Route path="/help" element={<PlaceholderPage title="Trợ giúp và phản hồi" backTo="/profile" />} />
+            {PLACEHOLDER_ROUTES.map((route) => (
+              <Route
+                key={route.path}
+                path={route.path}
+                element={<PlaceholderPage title={route.title} backTo={route.backTo} isPlaceholder />}
+              />
+            ))}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Layout>

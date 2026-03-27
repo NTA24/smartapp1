@@ -14,12 +14,13 @@ export const MiniAppLogPanel: React.FC = () => {
     if (!isMiniAppLogUiEnabled()) return;
 
     const onLog = (e: Event) => {
-      const d = (e as CustomEvent<string[]>).detail;
-      if (Array.isArray(d)) setLines([...d]);
+      if (!(e instanceof CustomEvent) || !Array.isArray(e.detail)) return;
+      const detail = e.detail.filter((item): item is string => typeof item === "string");
+      setLines([...detail]);
     };
-    window.addEventListener("miniapp-debug-log", onLog as EventListener);
+    window.addEventListener("miniapp-debug-log", onLog);
     setLines(getLogs());
-    return () => window.removeEventListener("miniapp-debug-log", onLog as EventListener);
+    return () => window.removeEventListener("miniapp-debug-log", onLog);
   }, []);
 
   if (!isMiniAppLogUiEnabled()) return null;

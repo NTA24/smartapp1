@@ -13,6 +13,12 @@
 let erudaInitDone = false;
 let tracingInitDone = false;
 let vconsoleInitDone = false;
+const ERUDA_CDN_URL =
+  String((import.meta.env as Record<string, unknown>).VITE_ERUDA_CDN_URL ?? "").trim() ||
+  "https://cdn.jsdelivr.net/npm/eruda@3.4.1/eruda.js";
+const VCONSOLE_CDN_URL =
+  String((import.meta.env as Record<string, unknown>).VITE_VCONSOLE_CDN_URL ?? "").trim() ||
+  "https://unpkg.com/vconsole@3.15.1/dist/vconsole.min.js";
 
 function parseQueryFromLocation(): URLSearchParams {
   const search = new URLSearchParams(window.location.search);
@@ -68,7 +74,7 @@ export async function initMiniAppDevtools(): Promise<void> {
 
   await new Promise<void>((resolve, reject) => {
     const s = document.createElement("script");
-    s.src = "https://cdn.jsdelivr.net/npm/eruda@3.4.1/eruda.js";
+    s.src = ERUDA_CDN_URL;
     s.async = true;
     s.onload = () => resolve();
     s.onerror = () => reject(new Error("Failed to load eruda.js"));
@@ -78,8 +84,7 @@ export async function initMiniAppDevtools(): Promise<void> {
   });
 
   try {
-    const eruda = (window as unknown as { eruda?: { init: (opts?: Record<string, unknown>) => void } }).eruda;
-    eruda?.init({ tool: ["console", "elements", "network", "resources", "info"] });
+    window.eruda?.init({ tool: ["console", "elements", "network", "resources", "info"] });
     erudaInitDone = true;
     console.info("[MiniApp] Eruda devtools enabled — trace JSAPI / console.log here.");
   } catch (e) {
@@ -95,14 +100,8 @@ export async function initMiniAppVConsole(): Promise<void> {
   if (typeof window === "undefined" || !isMiniAppDevtoolsEnabled()) return;
   if (vconsoleInitDone) return;
 
-  const w = window as unknown as {
-    VConsole?: new (opts?: Record<string, unknown>) => unknown;
-    vConsole?: unknown;
-    __miniapp_vconsole__?: unknown;
-  };
-
   // Nếu host app/SDK đã cài sẵn vConsole thì không khởi tạo lại.
-  if (w.vConsole || w.__miniapp_vconsole__) {
+  if (window.vConsole || window.__miniapp_vconsole__) {
     vconsoleInitDone = true;
     return;
   }
@@ -115,7 +114,7 @@ export async function initMiniAppVConsole(): Promise<void> {
     }
     const s = document.createElement("script");
     s.id = "miniapp-vconsole-script";
-    s.src = "https://unpkg.com/vconsole@3.15.1/dist/vconsole.min.js";
+    s.src = VCONSOLE_CDN_URL;
     s.async = true;
     s.onload = () => resolve();
     s.onerror = () => reject(new Error("Failed to load vconsole.min.js"));
@@ -125,9 +124,9 @@ export async function initMiniAppVConsole(): Promise<void> {
   });
 
   try {
-    const VC = w.VConsole;
-    if (VC && !w.vConsole && !w.__miniapp_vconsole__) {
-      w.__miniapp_vconsole__ = new VC({ maxLogNumber: 1000 });
+    const VC = window.VConsole;
+    if (VC && !window.vConsole && !window.__miniapp_vconsole__) {
+      window.__miniapp_vconsole__ = new VC({ maxLogNumber: 1000 });
       console.info("[MiniApp] vConsole enabled.");
     }
     vconsoleInitDone = true;
@@ -146,15 +145,7 @@ export function initMiniAppTracing(): void {
   import("./debugLog").then(({ addLog }) => {
     addLog("Tracing enabled: fetch + WindVane.call");
 
-    const w = window as unknown as {
-      WindVane?: {
-        call?: (className: string, method: string, params: unknown, ok?: (res: unknown) => void, err?: (e: unknown) => void) => void;
-      };
-      __miniapp_fetch_wrapped__?: boolean;
-      __miniapp_wv_wrapped__?: boolean;
-    };
-
-    if (!w.__miniapp_fetch_wrapped__ && typeof window.fetch === "function") {
+    if (!window.__miniapp_fetch_wrapped__ && typeof window.fetch === "function") {
       const origFetch = window.fetch.bind(window);
       window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
         const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
@@ -172,28 +163,34 @@ export function initMiniAppTracing(): void {
         }
         return res;
       };
-      w.__miniapp_fetch_wrapped__ = true;
+      window.__miniapp_fetch_wrapped__ = true;
     }
 
-    if (!w.__miniapp_wv_wrapped__ && typeof w.WindVane?.call === "function") {
-      const origCall = w.WindVane.call.bind(w.WindVane);
-      w.WindVane.call = (className, method, params, ok, err) => {
+    if (!window.__miniapp_wv_wrapped__ && typeof window.WindVane?.call === "function") {
+      const origCall = window.WindVane.call.bind(window.WindVane);
+      window.WindVane.call = <TSuccess = unknown, TError = unknown>(
+        className: string,
+        method: string,
+        params: unknown,
+        ok?: (res: TSuccess) => void,
+        err?: (e: TError) => void
+      ) => {
         addLog("[TRACE WV req]", `${className}.${method}`, params ?? {});
         return origCall(
           className,
           method,
           params,
-          (res: unknown) => {
+          (res: TSuccess) => {
             addLog("[TRACE WV ok]", `${className}.${method}`, res ?? {});
             ok?.(res);
           },
-          (e: unknown) => {
+          (e: TError) => {
             addLog("[TRACE WV err]", `${className}.${method}`, e ?? {});
             err?.(e);
           },
         );
       };
-      w.__miniapp_wv_wrapped__ = true;
+      window.__miniapp_wv_wrapped__ = true;
     }
   }).catch(() => {
     // ignore

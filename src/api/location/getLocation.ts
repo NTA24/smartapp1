@@ -23,6 +23,14 @@ export interface GetLocationResult {
   address?: LocationAddress;
 }
 
+function getErrorMsg(error: unknown): string {
+  if (error && typeof error === "object") {
+    const maybeMsg = (error as Record<string, unknown>).msg;
+    if (typeof maybeMsg === "string" && maybeMsg.trim()) return maybeMsg;
+  }
+  return JSON.stringify(error) || "Failed to get location";
+}
+
 export const getLocation = (
   params: GetLocationParams = {}
 ): Promise<GetLocationResult> => {
@@ -43,13 +51,8 @@ export const getLocation = (
       (result: GetLocationResult) => {
         resolve(result);
       },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (error: any) => {
-        reject(
-          new Error(
-            error?.msg || JSON.stringify(error) || "Failed to get location"
-          )
-        );
+      (error: unknown) => {
+        reject(new Error(getErrorMsg(error)));
       }
     );
   });

@@ -1,4 +1,5 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import { useDevicePower } from "../hooks/useDevicePower";
 
 const POWER_SVG = (
@@ -25,14 +26,16 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({
   defaultOn = false,
 }) => {
   const { on, toggle } = useDevicePower(deviceId, defaultOn);
+  const navigate = useNavigate();
 
   return (
     <div
       className="device-card"
       data-device-id={deviceId}
       onClick={(e) => {
-        if (!(e.target as HTMLElement).closest(".power-btn")) {
-          window.location.hash = `#/device/${deviceId}`;
+        const target = e.target;
+        if (!(target instanceof Element) || !target.closest(".power-btn")) {
+          navigate(`/device/${deviceId}`);
         }
       }}
     >

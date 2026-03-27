@@ -92,7 +92,7 @@ export const AddDevicePage: React.FC = () => {
         return;
       }
 
-      const DetectorCtor = (window as unknown as { BarcodeDetector?: new (opts?: { formats?: string[] }) => { detect: (input: ImageBitmap) => Promise<Array<{ rawValue?: string }>> } }).BarcodeDetector;
+      const DetectorCtor = window.BarcodeDetector;
       if (!DetectorCtor) {
         setSuccessText("Đã chụp ảnh QR. Thiết bị chưa hỗ trợ đọc QR tự động, bạn nhập serial thủ công.");
         return;
@@ -113,47 +113,40 @@ export const AddDevicePage: React.FC = () => {
   };
 
   return (
-    <div className="page-add-device">
-      <div className="add-device-header">
-        <Link to="/" className="back btn-back" aria-label="Quay lại">
+    <div className="add-device-page">
+      <div className="add-device-page__header">
+        <Link to="/" className="add-device-page__back btn-back" aria-label="Quay lại">
           <span className="btn-back-arrow">
             <LeftOutlined />
           </span>
         </Link>
-        <h1 className="title">Thêm thiết bị</h1>
+        <h1 className="add-device-page__title">Thêm thiết bị</h1>
       </div>
 
-      <div className="add-device-body">
-        <div style={{ color: "#637083", marginBottom: 16 }}>
+      <div className="add-device-page__body">
+        <div className="add-device-page__account">
           Tài khoản: <strong>{username || "Chưa có username từ Tammi"}</strong>
         </div>
 
-        <div className="add-device-section">
-          <div className="section-title">Chọn nhanh loại thiết bị</div>
-          <div className="section-desc">Chọn loại, sau đó nhập serial là tạo được.</div>
-          <div style={{ display: "grid", gap: 10 }}>
+        <div className="add-device-page__section">
+          <div className="add-device-page__section-title">Chọn nhanh loại thiết bị</div>
+          <div className="add-device-page__section-desc">Chọn loại, sau đó nhập serial là tạo được.</div>
+          <div className="add-device-page__template-list">
             {DEVICE_TEMPLATES.map((tpl) => {
               const active = tpl.key === selectedTemplate.key;
               return (
                 <button
                   key={tpl.key}
                   type="button"
-                  className="add-device-row"
+                  className={`add-device-page__row add-device-page__template-row ${active ? "add-device-page__template-row--active" : ""}`}
                   onClick={() => applyTemplate(tpl)}
-                  style={{
-                    width: "100%",
-                    textAlign: "left",
-                    background: active ? "rgba(0,172,193,0.12)" : "#f6f9fc",
-                    border: "none",
-                    borderRadius: 14,
-                  }}
                 >
-                  <div className="row-icon">{active ? "✓" : ""}</div>
-                  <div className="row-text">
-                    <div style={{ fontWeight: 700, color: "#1a2332", fontSize: 15 }}>{tpl.title}</div>
-                    <div style={{ color: "#637083", fontSize: 13 }}>{tpl.type}</div>
+                  <div className="add-device-page__row-icon">{active ? "✓" : ""}</div>
+                  <div className="add-device-page__row-text">
+                    <div className="add-device-page__template-title">{tpl.title}</div>
+                    <div className="add-device-page__template-type">{tpl.type}</div>
                   </div>
-                  <div className="row-arrow">
+                  <div className="add-device-page__row-arrow">
                     <RightOutlined />
                   </div>
                 </button>
@@ -162,63 +155,40 @@ export const AddDevicePage: React.FC = () => {
           </div>
         </div>
 
-        <form onSubmit={onSubmit} className="add-device-section" style={{ marginBottom: 0 }}>
+        <form onSubmit={onSubmit} className="add-device-page__section add-device-page__form">
           <input
             ref={qrInputRef}
             type="file"
             accept="image/*"
             capture="environment"
             onChange={onQrPick}
-            style={{ display: "none" }}
+            className="add-device-page__file-input"
           />
           <button
             type="button"
             onClick={() => qrInputRef.current?.click()}
-            style={{
-              marginTop: 10,
-              height: 42,
-              borderRadius: 12,
-              background: "#eef3f9",
-              color: "#1a2332",
-              textDecoration: "none",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontWeight: 700,
-              fontSize: 14,
-              width: "100%",
-              border: "none",
-              cursor: "pointer",
-            }}
+            className="add-device-page__qr-btn"
           >
             Quét QR
           </button>
-          <div style={{ display: "grid", gap: 12, marginTop: 12 }}>
-            <label style={{ fontSize: 13, color: "#637083", fontWeight: 600 }}>Serial / Mã thiết bị</label>
+          <div className="add-device-page__serial-group">
+            <label className="add-device-page__serial-label">Serial / Mã thiết bị</label>
             <input
               value={deviceSerial}
               onChange={(e) => setDeviceSerial(e.target.value)}
               placeholder="VD: A4B72CCDFF33"
-              style={{ height: 44, borderRadius: 12, border: "none", background: "#f6f9fc", padding: "0 12px", fontSize: 14 }}
+              className="add-device-page__serial-input"
             />
           </div>
-          <div style={{ marginTop: 8, color: "#637083", fontSize: 12 }}>
+          <div className="add-device-page__note">
             App sẽ tự tạo payload theo loại bạn đã chọn.
           </div>
 
-          <div style={{ display: "grid", gap: 10, marginTop: 14 }}>
+          <div className="add-device-page__actions">
             <button
               type="submit"
               disabled={submitting}
-              style={{
-                height: 44,
-                borderRadius: 12,
-                border: "none",
-                background: "#00acc1",
-                color: "#fff",
-                fontWeight: 700,
-                fontSize: 15,
-              }}
+              className="add-device-page__submit-btn"
             >
               {submitting ? "Đang thêm thiết bị..." : "Thêm"}
             </button>
@@ -226,14 +196,7 @@ export const AddDevicePage: React.FC = () => {
             <button
               type="button"
               onClick={() => navigate("/")}
-              style={{
-                height: 40,
-                borderRadius: 10,
-                border: "none",
-                background: "#eef3f9",
-                color: "#1a2332",
-                fontWeight: 600,
-              }}
+              className="add-device-page__home-btn"
             >
               Về Smart Home
             </button>
@@ -241,12 +204,12 @@ export const AddDevicePage: React.FC = () => {
         </form>
 
         {errorText && (
-          <div style={{ marginTop: 12, color: "#d93025", fontWeight: 600, fontSize: 14 }}>
+          <div className="add-device-page__feedback add-device-page__feedback--error">
             {errorText}
           </div>
         )}
         {successText && (
-          <div style={{ marginTop: 12, color: "#128a57", fontWeight: 600, fontSize: 14 }}>
+          <div className="add-device-page__feedback add-device-page__feedback--success">
             {successText}
           </div>
         )}

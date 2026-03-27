@@ -5,26 +5,8 @@ import { getAuthCode, onWindVaneReady } from "../services/auth";
 import { addLog } from "../lib/debugLog";
 import { getUserInfoByAuthCode } from "../../api/authentication/getUserInfoByAuthCode";
 import { getDevicesByUsername, type SmartBuildingDeviceRecord } from "../services/deviceSync";
-
-const ZYAPP_CAMERA_TOKEN_STORAGE_KEY = "zyapp_camera_token_response";
-
-function extractCameraToken(payload: unknown): string {
-  if (!payload || typeof payload !== "object") return "";
-  const p = payload as Record<string, unknown>;
-  const tokenCandidates = [
-    p.cameraToken,
-    p.token,
-    (p.data as Record<string, unknown> | undefined)?.cameraToken,
-    (p.data as Record<string, unknown> | undefined)?.token,
-    (p.result as Record<string, unknown> | undefined)?.cameraToken,
-    (p.result as Record<string, unknown> | undefined)?.token,
-  ];
-  for (const candidate of tokenCandidates) {
-    const v = String(candidate ?? "").trim();
-    if (v) return v;
-  }
-  return "";
-}
+import { extractCameraToken } from "../utils/cameraFlow";
+import { ZYAPP_CAMERA_TOKEN_STORAGE_KEY } from "../lib/storageKeys";
 
 interface MiniAppState {
   userPhone: string;
@@ -32,6 +14,8 @@ interface MiniAppState {
   appId: string;
   apiBase: string;
   authModalVisible: boolean;
+  authLoading: boolean;
+  authError: string;
 }
 
 interface MiniAppContextValue extends MiniAppState {
@@ -41,6 +25,7 @@ interface MiniAppContextValue extends MiniAppState {
   setAuthModalVisible: (v: boolean) => void;
   requestAuthAndPhone: () => Promise<void>;
   saveAppId: (id: string) => void;
+  clearAuthError: () => void;
 }
 
 const initialState: MiniAppState = {
@@ -49,6 +34,8 @@ const initialState: MiniAppState = {
   appId: "",
   apiBase: getApiBase(),
   authModalVisible: false,
+  authLoading: false,
+  authError: "",
 };
 
 const MiniAppContext = createContext<MiniAppContextValue | null>(null);
@@ -63,7 +50,7 @@ export function MiniAppProvider({ children }: { children: React.ReactNode }) {
 
   const setUserPhone = useCallback((phone: string) => {
     setState((s) => ({ ...s, userPhone: phone }));
-    if (typeof window !== "undefined") (window as unknown as { MINIAPP_USER_PHONE?: string }).MINIAPP_USER_PHONE = phone;
+    if (typeof window !== "undefined") window.MINIAPP_USER_PHONE = phone;
   }, []);
 
   const setDevices = useCallback((devices: SmartBuildingDeviceRecord[]) => {
@@ -74,8 +61,12 @@ export function MiniAppProvider({ children }: { children: React.ReactNode }) {
     setState((s) => ({ ...s, authModalVisible: v }));
   }, []);
 
+  const clearAuthError = useCallback(() => {
+    setState((s) => ({ ...s, authError: "" }));
+  }, []);
+
   const refreshDevices = useCallback(async () => {
-    const username = String((window as unknown as { MINIAPP_USER_PHONE?: string }).MINIAPP_USER_PHONE ?? state.userPhone ?? "").trim();
+    const username = String(window.MINIAPP_USER_PHONE ?? state.userPhone ?? "").trim();
     if (!username) {
       setDevices([]);
       return;
@@ -91,6 +82,7 @@ export function MiniAppProvider({ children }: { children: React.ReactNode }) {
 
   const requestAuthAndPhone = useCallback(async () => {
     addLog("[CHECK][AUTH_CODE] start getAuthCode via wv.getAuthCode");
+    setState((s) => ({ ...s, authLoading: true, authError: "" }));
     try {
       const auth = await getAuthCode(["USER_NAME", "USER_EMAIL"]);
       addLog("[CHECK][AUTH_CODE] success", {
@@ -140,10 +132,36 @@ export function MiniAppProvider({ children }: { children: React.ReactNode }) {
           addLog("requestAuthAndPhone: đã đồng bộ quyền thiết bị");
         }
       }
-    } catch (e) {
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
       addLog("[CHECK][AUTH_FLOW] error", e);
+      setState((s) => ({ ...s, authError: msg || "Auth flow failed" }));
+      throw e;
+    } finally {
+      setState((s) => ({ ...s, authLoading: false }));
     }
   }, [setDevices, setUserPhone]);
+
+  const initializeMiniApp = useCallback(async (): Promise<void> => {
+    await onWindVaneReady();
+
+    if (!window.WindVane?.call) {
+      // Không chạy trong super app → bỏ qua auth
+      setState((s) => ({ ...s, authModalVisible: false }));
+      return;
+    }
+
+    const current = getMiniAppAppId();
+    if (!current || current.trim() === "") {
+      saveAppId(DEFAULT_MINIAPP_APP_ID);
+      setState((s) => ({ ...s, appId: DEFAULT_MINIAPP_APP_ID }));
+    }
+
+    if (!didRequestRef.current) {
+      didRequestRef.current = true;
+      await requestAuthAndPhone();
+    }
+  }, [requestAuthAndPhone]);
 
   const saveAppIdCallback = useCallback((id: string) => {
     saveAppId(id);
@@ -156,28 +174,16 @@ export function MiniAppProvider({ children }: { children: React.ReactNode }) {
 
     let cancelled = false;
     (async () => {
-      await onWindVaneReady();
-      if (cancelled) return;
-
-      if (!window.WindVane?.call) {
-        // Không chạy trong super app → bỏ qua auth
-        setState((s) => ({ ...s, authModalVisible: false }));
-        return;
-      }
-
-      const current = getMiniAppAppId();
-      if (!current || current.trim() === "") {
-        saveAppId(DEFAULT_MINIAPP_APP_ID);
-        setState((s) => ({ ...s, appId: DEFAULT_MINIAPP_APP_ID }));
-      }
-
-      if (!didRequestRef.current) {
-        didRequestRef.current = true;
-        await requestAuthAndPhone();
+      try {
+        await initializeMiniApp();
+      } catch (e) {
+        if (!cancelled) {
+          addLog("[CHECK][INIT_FLOW] error", e);
+        }
       }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [initializeMiniApp]);
 
   const value: MiniAppContextValue = {
     ...state,
@@ -188,6 +194,7 @@ export function MiniAppProvider({ children }: { children: React.ReactNode }) {
     setAuthModalVisible,
     requestAuthAndPhone,
     saveAppId: saveAppIdCallback,
+    clearAuthError,
   };
 
   return (

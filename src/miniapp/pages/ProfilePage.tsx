@@ -1,22 +1,12 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { Link } from "react-router-dom";
 import { useMiniApp } from "../context/MiniAppContext";
 import { PlusOutlined, UserOutlined, AudioOutlined, DesktopOutlined, AppstoreOutlined, SettingOutlined, MessageOutlined } from "@ant-design/icons";
+import { useAuthLoading } from "../hooks/useAuthLoading";
 
 export const ProfilePage: React.FC = () => {
   const { userPhone } = useMiniApp();
-  const [loadingName, setLoadingName] = useState(true);
-
-  useEffect(() => {
-    setLoadingName(!userPhone);
-
-    if (!userPhone) {
-      const t = window.setTimeout(() => {
-        setLoadingName(false);
-      }, 15000);
-      return () => window.clearTimeout(t);
-    }
-  }, [userPhone]);
+  const loadingName = useAuthLoading(userPhone);
 
   const formatPhone = (phone: string) => {
     const raw = String(phone || "").trim();
@@ -34,94 +24,68 @@ export const ProfilePage: React.FC = () => {
   const finalName = userPhone ? formatPhone(userPhone) : "";
 
   return (
-    <div className="page-profile">
+    <div className="profile-page">
       {loadingName && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(255,255,255,0.78)",
-            zIndex: 9997,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 10,
-            pointerEvents: "none",
-          }}
-        >
-          <div
-            style={{
-              width: 36,
-              height: 36,
-              borderRadius: 999,
-              border: "3px solid rgba(0,0,0,0.12)",
-              borderTopColor: "rgba(0,172,193,1)",
-              animation: "zy-spin 0.9s linear infinite",
-            }}
-          />
-          <div style={{ fontSize: 13, fontWeight: 600, color: "#1a2332" }}>
-            Đang tải thông tin...
-          </div>
-          <div style={{ fontSize: 12, color: "#8b95a5", padding: "0 20px", textAlign: "center" }}>
-            Vui lòng chờ...
-          </div>
+        <div className="miniapp-loading__overlay">
+          <div className="miniapp-loading__spinner" />
+          <div className="miniapp-loading__text">Đang tải thông tin...</div>
+          <div className="miniapp-loading__subtext">Vui lòng chờ...</div>
         </div>
       )}
 
-      <div className="account-section">
-        <div className="account-id">
+      <div className="profile-page__account-section">
+        <div className="profile-page__account-id">
           <Link to="/account">{finalName || "Chưa có"}</Link>
         </div>
-        <div className="account-sub">Quản lý tài khoản</div>
-        <div className="account-phone">
-          <span className="account-phone-label">Số điện thoại</span>
-          <div className="account-phone-value">
-            <span className="account-phone-number">{userPhone ? formatPhone(userPhone) : "Chưa có"}</span>
+        <div className="profile-page__account-sub">Quản lý tài khoản</div>
+        <div className="profile-page__account-phone">
+          <span className="profile-page__account-phone-label">Số điện thoại</span>
+          <div className="profile-page__account-phone-value">
+            <span className="profile-page__account-phone-number">{userPhone ? formatPhone(userPhone) : "Chưa có"}</span>
           </div>
         </div>
-        <div className="tags">
-          <span className="tag">2 gia đình</span>
-          <span className="tag">1 thiết bị</span>
+        <div className="profile-page__tags">
+          <span className="profile-page__tag">2 gia đình</span>
+          <span className="profile-page__tag">1 thiết bị</span>
         </div>
       </div>
-      <div className="card-block">
-        <div className="card-title">{finalName || "Chưa có"}</div>
-        <div className="card-desc">Thành viên trong gia đình(1)</div>
-        <div className="card-actions">
-          <button type="button" className="icon-btn" aria-label="Thêm thành viên">
+      <div className="profile-page__card-block">
+        <div className="profile-page__card-title">{finalName || "Chưa có"}</div>
+        <div className="profile-page__card-desc">Thành viên trong gia đình(1)</div>
+        <div className="profile-page__card-actions">
+          <button type="button" className="profile-page__icon-btn" aria-label="Thêm thành viên">
             <PlusOutlined />
           </button>
-          <Link to="/account" className="icon-btn" aria-label="Quản lý gia đình">
+          <Link to="/account" className="profile-page__icon-btn" aria-label="Quản lý gia đình">
             <UserOutlined />
           </Link>
         </div>
       </div>
-      <Link to="/voice" className="list-item">
-        <div className="list-icon blue"><AudioOutlined /></div>
-        <span className="list-text">Trợ lý thoại</span>
-        <span className="list-arrow">›</span>
+      <Link to="/voice" className="profile-page__list-item">
+        <div className="profile-page__list-icon profile-page__list-icon--blue"><AudioOutlined /></div>
+        <span className="profile-page__list-text">Trợ lý thoại</span>
+        <span className="profile-page__list-arrow">›</span>
       </Link>
-      <Link to="/devices" className="list-item">
-        <div className="list-icon green"><DesktopOutlined /></div>
-        <span className="list-text">Quản lý nhiều thiết bị</span>
-        <span className="list-arrow">›</span>
+      <Link to="/devices" className="profile-page__list-item">
+        <div className="profile-page__list-icon profile-page__list-icon--green"><DesktopOutlined /></div>
+        <span className="profile-page__list-text">Quản lý nhiều thiết bị</span>
+        <span className="profile-page__list-arrow">›</span>
       </Link>
-      <Link to="/hub" className="list-item">
-        <div className="list-icon green"><AppstoreOutlined /></div>
-        <span className="list-text">Hub & cổng</span>
-        <span className="list-arrow">›</span>
+      <Link to="/hub" className="profile-page__list-item">
+        <div className="profile-page__list-icon profile-page__list-icon--green"><AppstoreOutlined /></div>
+        <span className="profile-page__list-text">Hub & cổng</span>
+        <span className="profile-page__list-arrow">›</span>
       </Link>
-      <Link to="/settings" className="list-item">
-        <div className="list-icon gray"><SettingOutlined /></div>
-        <span className="list-text">Cài đặt khác</span>
-        <span className="list-arrow">›</span>
+      <Link to="/settings" className="profile-page__list-item">
+        <div className="profile-page__list-icon profile-page__list-icon--gray"><SettingOutlined /></div>
+        <span className="profile-page__list-text">Cài đặt khác</span>
+        <span className="profile-page__list-arrow">›</span>
       </Link>
-      <div className="card-block" style={{ marginTop: 16 }}>
-        <Link to="/help" className="list-item" style={{ paddingLeft: 0 }}>
-          <div className="list-icon blue"><MessageOutlined /></div>
-          <span className="list-text">Trợ giúp và phản hồi</span>
-          <span className="list-arrow">›</span>
+      <div className="profile-page__card-block profile-page__help-card">
+        <Link to="/help" className="profile-page__list-item profile-page__help-item">
+          <div className="profile-page__list-icon profile-page__list-icon--blue"><MessageOutlined /></div>
+          <span className="profile-page__list-text">Trợ giúp và phản hồi</span>
+          <span className="profile-page__list-arrow">›</span>
         </Link>
       </div>
     </div>

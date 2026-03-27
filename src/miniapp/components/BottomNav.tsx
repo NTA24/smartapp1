@@ -1,18 +1,7 @@
 import React from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { HomeOutlined, AppstoreOutlined, ThunderboltOutlined, ShoppingCartOutlined, UserOutlined } from "@ant-design/icons";
-
-const CAMERA_FLOW_TRACE_KEY = "zyapp_camera_flow_trace";
-
-function updateCameraFlowTrace(patch: Record<string, unknown>) {
-  try {
-    const prevRaw = sessionStorage.getItem(CAMERA_FLOW_TRACE_KEY);
-    const prev = prevRaw ? (JSON.parse(prevRaw) as Record<string, unknown>) : {};
-    sessionStorage.setItem(CAMERA_FLOW_TRACE_KEY, JSON.stringify({ ...prev, ...patch }));
-  } catch {
-    // Ignore storage errors.
-  }
-}
+import { updateCameraFlowTrace } from "../utils/cameraFlow";
 
 const NAV_ITEMS = [
   { path: "/", page: "home", label: "Smart Home", icon: HomeOutlined },

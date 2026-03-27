@@ -7,6 +7,14 @@ export interface SearchLocationResult {
   latitude: string;
 }
 
+function getErrorMsg(error: unknown): string {
+  if (error && typeof error === "object") {
+    const maybeMsg = (error as Record<string, unknown>).msg;
+    if (typeof maybeMsg === "string" && maybeMsg.trim()) return maybeMsg;
+  }
+  return JSON.stringify(error) || "Failed to search location";
+}
+
 export const searchLocation = (
   params: SearchLocationParams
 ): Promise<SearchLocationResult> => {
@@ -27,13 +35,8 @@ export const searchLocation = (
       (result: SearchLocationResult) => {
         resolve(result);
       },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (error: any) => {
-        reject(
-          new Error(
-            error?.msg || JSON.stringify(error) || "Failed to search location"
-          )
-        );
+      (error: unknown) => {
+        reject(new Error(getErrorMsg(error)));
       }
     );
   });

@@ -13,14 +13,41 @@ declare module "react" {
 }
 
 declare global {
+  interface ErudaApi {
+    init: (opts?: Record<string, unknown>) => void;
+  }
+
+  interface VConsoleCtor {
+    new (opts?: Record<string, unknown>): unknown;
+  }
+
+  interface BarcodeDetectorLike {
+    detect: (input: ImageBitmapSource) => Promise<Array<{ rawValue?: string }>>;
+  }
+
+  interface BarcodeDetectorCtorLike {
+    new (opts?: { formats?: string[] }): BarcodeDetectorLike;
+  }
+
   interface Window {
     WindVane?: {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      call: (module: string, method: string, params: unknown, onSuccess?: (res: any) => void, onFail?: (err: any) => void) => void;
+      call: <TSuccess = unknown, TError = unknown>(
+        module: string,
+        method: string,
+        params: unknown,
+        onSuccess?: (res: TSuccess) => void,
+        onFail?: (err: TError) => void
+      ) => void;
     };
+    eruda?: ErudaApi;
+    VConsole?: VConsoleCtor;
+    vConsole?: unknown;
+    __miniapp_vconsole__?: unknown;
+    __miniapp_fetch_wrapped__?: boolean;
+    __miniapp_wv_wrapped__?: boolean;
+    BarcodeDetector?: BarcodeDetectorCtorLike;
     JSBridge?: {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      send: (path: string, data: unknown, callback?: (res: any) => void) => void;
+      send: (path: string, data: unknown, callback?: (res: unknown) => void) => void;
     };
     MiniAppPermissions?: {
       getSetting: () => Promise<{ authSetting: Record<string, boolean> }>;

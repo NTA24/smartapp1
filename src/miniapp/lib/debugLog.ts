@@ -5,26 +5,6 @@
 
 const MAX_LINES = 80;
 const STORAGE_KEY = "miniapp_debug_lines";
-let lines: string[] = [];
-
-function hydrateFromStorage() {
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return;
-    const arr = JSON.parse(raw);
-    if (Array.isArray(arr)) lines = arr.slice(-MAX_LINES).map((x) => String(x));
-  } catch {
-    // ignore
-  }
-}
-
-function persistToStorage() {
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(lines.slice(-MAX_LINES)));
-  } catch {
-    // ignore
-  }
-}
 
 function serialize(x: unknown): string {
   if (x === null) return "null";
@@ -33,36 +13,77 @@ function serialize(x: unknown): string {
   return String(x);
 }
 
-export function addLog(...args: unknown[]): void {
-  if (typeof window !== "undefined" && lines.length === 0) hydrateFromStorage();
-  const line = args.map(serialize).join(" ");
-  const time = new Date().toLocaleTimeString("vi-VN", { hour12: false });
-  lines.push(`[${time}] ${line}`);
-  if (lines.length > MAX_LINES) lines = lines.slice(-MAX_LINES);
-  persistToStorage();
-  try {
-    window.dispatchEvent(new CustomEvent("miniapp-debug-log", { detail: [...lines] }));
-  } catch {
-    // ignore
+class MiniAppDebugLogStore {
+  private lines: string[] = [];
+  private hydrated = false;
+
+  private ensureHydrated(): void {
+    if (this.hydrated || typeof window === "undefined") return;
+    this.hydrated = true;
+    try {
+      const raw = window.localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr)) this.lines = arr.slice(-MAX_LINES).map((x) => String(x));
+    } catch {
+      // ignore
+    }
   }
-  console.log("[MiniApp]", ...args);
+
+  private persist(): void {
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(this.lines.slice(-MAX_LINES)));
+    } catch {
+      // ignore
+    }
+  }
+
+  add(...args: unknown[]): void {
+    this.ensureHydrated();
+    const line = args.map(serialize).join(" ");
+    const time = new Date().toLocaleTimeString("vi-VN", { hour12: false });
+    this.lines.push(`[${time}] ${line}`);
+    if (this.lines.length > MAX_LINES) this.lines = this.lines.slice(-MAX_LINES);
+    this.persist();
+    try {
+      window.dispatchEvent(new CustomEvent("miniapp-debug-log", { detail: [...this.lines] }));
+    } catch {
+      // ignore
+    }
+    console.log("[MiniApp]", ...args);
+  }
+
+  list(): string[] {
+    this.ensureHydrated();
+    return [...this.lines];
+  }
+
+  clear(): void {
+    this.lines = [];
+    this.hydrated = true;
+    try {
+      window.localStorage.removeItem(STORAGE_KEY);
+    } catch {
+      // ignore
+    }
+    try {
+      window.dispatchEvent(new CustomEvent("miniapp-debug-log", { detail: [] }));
+    } catch {
+      // ignore
+    }
+  }
+}
+
+const debugLogStore = new MiniAppDebugLogStore();
+
+export function addLog(...args: unknown[]): void {
+  debugLogStore.add(...args);
 }
 
 export function getLogs(): string[] {
-  if (typeof window !== "undefined" && lines.length === 0) hydrateFromStorage();
-  return [...lines];
+  return debugLogStore.list();
 }
 
 export function clearLogs(): void {
-  lines = [];
-  try {
-    window.localStorage.removeItem(STORAGE_KEY);
-  } catch {
-    // ignore
-  }
-  try {
-    window.dispatchEvent(new CustomEvent("miniapp-debug-log", { detail: [] }));
-  } catch {
-    // ignore
-  }
+  debugLogStore.clear();
 }

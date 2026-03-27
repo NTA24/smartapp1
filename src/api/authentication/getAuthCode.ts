@@ -1,7 +1,6 @@
 export interface AuthCodeResponse {
   authCode: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export const getAuthCode = (
@@ -34,8 +33,7 @@ export const getAuthCode = (
           reject(new Error("No auth code returned"));
         }
       },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (error: any) => {
+      (error: unknown) => {
         reject(new Error(JSON.stringify(error) || "Failed to get auth code"));
       }
     );
