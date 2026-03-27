@@ -3,13 +3,14 @@ import { getMiniAppAppId, getApiBase, saveAppId, STORAGE_KEY_APP_ID, DEFAULT_MIN
 import { storeGet } from "../lib/store";
 import { getAuthCode, onWindVaneReady } from "../services/auth";
 import { addLog } from "../lib/debugLog";
-import { getUserInfoByAuthCode } from "../../api/authentication/getUserInfoByAuthCode";
+import { getPhoneFromUserInfo, getUserInfoByAuthCode } from "../../api/authentication/getUserInfoByAuthCode";
 import { getDevicesByUsername, type SmartBuildingDeviceRecord } from "../services/deviceSync";
 import { extractCameraToken } from "../utils/cameraFlow";
 import { ZYAPP_CAMERA_TOKEN_STORAGE_KEY } from "../lib/storageKeys";
 
 interface MiniAppState {
   userPhone: string;
+  cameraToken: string;
   devices: SmartBuildingDeviceRecord[];
   appId: string;
   apiBase: string;
@@ -30,6 +31,7 @@ interface MiniAppContextValue extends MiniAppState {
 
 const initialState: MiniAppState = {
   userPhone: typeof window !== "undefined" ? (window.MINIAPP_USER_PHONE ?? "") : "",
+  cameraToken: "",
   devices: [],
   appId: "",
   apiBase: getApiBase(),
@@ -40,10 +42,21 @@ const initialState: MiniAppState = {
 
 const MiniAppContext = createContext<MiniAppContextValue | null>(null);
 
+function hydrateStoredCameraToken(): string {
+  try {
+    const raw = sessionStorage.getItem(ZYAPP_CAMERA_TOKEN_STORAGE_KEY);
+    if (!raw) return "";
+    return extractCameraToken(JSON.parse(raw) as unknown);
+  } catch {
+    return "";
+  }
+}
+
 export function MiniAppProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<MiniAppState>(() => ({
     ...initialState,
     appId: getMiniAppAppId(),
+    cameraToken: hydrateStoredCameraToken(),
   }));
 
   const didRequestRef = useRef(false);
@@ -84,7 +97,8 @@ export function MiniAppProvider({ children }: { children: React.ReactNode }) {
     addLog("[CHECK][AUTH_CODE] start getAuthCode via wv.getAuthCode");
     setState((s) => ({ ...s, authLoading: true, authError: "" }));
     try {
-      const auth = await getAuthCode();
+      // Phone is resolved from `/oauth/user-info`, so request the scopes that endpoint relies on.
+      const auth = await getAuthCode(["USER_NAME", "USER_EMAIL"]);
       addLog("[CHECK][AUTH_CODE] success", {
         hasAuthCode: Boolean(String(auth?.authCode ?? "").trim()),
         authCodePreview: String(auth?.authCode ?? "").slice(0, 8) + "…",
@@ -94,19 +108,24 @@ export function MiniAppProvider({ children }: { children: React.ReactNode }) {
       });
       const info = await getUserInfoByAuthCode(auth.authCode);
       addLog("[CHECK][USER_INFO_API] response", info);
-      try {
-        sessionStorage.setItem(ZYAPP_CAMERA_TOKEN_STORAGE_KEY, JSON.stringify(info));
-        const token = extractCameraToken(info);
-        addLog("[CHECK][USER_INFO_API] cameraToken extracted", {
-          hasCameraToken: Boolean(token),
-          tokenPreview: token ? token.slice(0, 8) + "…" : "",
-        });
-      } catch (e) {
-        addLog("[CHECK][USER_INFO_API] store response error", e);
+      const phone = getPhoneFromUserInfo(info);
+      const camToken = extractCameraToken(info);
+      addLog("[CHECK][USER_INFO_API] phone & cameraToken extracted", {
+        hasPhone: Boolean(phone),
+        phonePreview: phone ? phone.slice(0, 4) + "***" : "",
+        hasCameraToken: Boolean(camToken),
+        tokenPreview: camToken ? camToken.slice(0, 8) + "…" : "",
+      });
+
+      if (camToken) {
+        setState((s) => ({ ...s, cameraToken: camToken }));
+        try {
+          sessionStorage.setItem(ZYAPP_CAMERA_TOKEN_STORAGE_KEY, JSON.stringify(info));
+        } catch (e) {
+          addLog("[CHECK][USER_INFO_API] sessionStorage store error", e);
+        }
       }
 
-      // Theo thực tế của bạn: username trả về chính là số điện thoại.
-      const phone = String(info?.username ?? "").trim();
       if (phone) {
         addLog("requestAuthAndPhone: OK, số ĐT=", phone);
         setUserPhone(phone);

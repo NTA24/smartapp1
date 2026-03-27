@@ -1,9 +1,17 @@
 import { USER_INFO_URL } from "../../miniapp/lib/config";
 
 export interface UserInfoResponse {
-  username: string;
-  email: string;
-  fullName: string;
+  username?: string;
+  email?: string;
+  fullName?: string;
+  phone?: string;
+  phoneNumber?: string;
+  msisdn?: string;
+  user?: {
+    phoneNumber?: string;
+    msisdn?: string;
+    [key: string]: unknown;
+  };
   // API có thể trả thêm field khác
   [key: string]: unknown;
 }
@@ -24,15 +32,41 @@ function pickErrorMessage(data: unknown): string {
 function parseUserInfoResponse(data: unknown): UserInfoResponse {
   const record = asRecord(data);
   if (!record) throw new Error("Invalid user info response");
-  if (typeof record.username !== "string") throw new Error("Invalid user info: missing username");
-  if (typeof record.email !== "string") throw new Error("Invalid user info: missing email");
-  if (typeof record.fullName !== "string") throw new Error("Invalid user info: missing fullName");
+  const userRecord = asRecord(record.user);
   return {
     ...record,
-    username: record.username,
-    email: record.email,
-    fullName: record.fullName,
+    ...(typeof record.username === "string" ? { username: record.username } : {}),
+    ...(typeof record.email === "string" ? { email: record.email } : {}),
+    ...(typeof record.fullName === "string" ? { fullName: record.fullName } : {}),
+    ...(typeof record.phone === "string" ? { phone: record.phone } : {}),
+    ...(typeof record.phoneNumber === "string" ? { phoneNumber: record.phoneNumber } : {}),
+    ...(typeof record.msisdn === "string" ? { msisdn: record.msisdn } : {}),
+    ...(userRecord
+      ? {
+          user: {
+            ...userRecord,
+            ...(typeof userRecord.phoneNumber === "string" ? { phoneNumber: userRecord.phoneNumber } : {}),
+            ...(typeof userRecord.msisdn === "string" ? { msisdn: userRecord.msisdn } : {}),
+          },
+        }
+      : {}),
   };
+}
+
+export function getPhoneFromUserInfo(data: UserInfoResponse): string {
+  const candidates = [
+    data.phone,
+    data.phoneNumber,
+    data.msisdn,
+    data.user?.phoneNumber,
+    data.user?.msisdn,
+    data.username,
+  ];
+  for (const value of candidates) {
+    const normalized = String(value ?? "").trim();
+    if (normalized) return normalized;
+  }
+  return "";
 }
 
 export async function getUserInfoByAuthCode(authCode: string): Promise<UserInfoResponse> {

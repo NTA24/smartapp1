@@ -1,9 +1,8 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useMiniApp } from "../context/MiniAppContext";
 import { addLog } from "../lib/debugLog";
-import { getAuthCode, isWindVaneReady, onWindVaneReady } from "../services/auth";
-import { extractCameraToken, updateCameraFlowTrace } from "../utils/cameraFlow";
-import { ZYAPP_CAMERA_TOKEN_STORAGE_KEY } from "../lib/storageKeys";
+import { isWindVaneReady, onWindVaneReady } from "../services/auth";
+import { updateCameraFlowTrace } from "../utils/cameraFlow";
 
 interface CameraJsapiResponse {
   success?: boolean;
@@ -57,22 +56,16 @@ function makeCallFromCameraByJsapi(token: string): Promise<unknown> {
 }
 
 export const ZYAppPage: React.FC = () => {
-  const { userPhone } = useMiniApp();
+  const { userPhone, cameraToken, requestAuthAndPhone, authLoading } = useMiniApp();
 
   const [bridgeMsg, setBridgeMsg] = useState("");
-
-  const [cameraTokenLoading, setCameraTokenLoading] = useState(false);
-  const [cameraToken, setCameraToken] = useState("");
-  const [cameraTokenMsg, setCameraTokenMsg] = useState("");
+  const [refreshMsg, setRefreshMsg] = useState("");
 
   const [cameraCallLoading, setCameraCallLoading] = useState(false);
   const [cameraCallResult, setCameraCallResult] = useState("");
   const [cameraCallMsg, setCameraCallMsg] = useState("");
 
-  const username = useMemo(
-    () => String(userPhone || "").replace(/[^\d]/g, "").trim(),
-    [userPhone],
-  );
+  const phone = String(userPhone || "").replace(/[^\d]/g, "").trim();
 
   useEffect(() => {
     let cancelled = false;
@@ -94,44 +87,17 @@ export const ZYAppPage: React.FC = () => {
     };
   }, []);
 
-  useEffect(() => {
-    // Dùng token đã lưu từ flow requestAuthAndPhone -> getUserInfoByAuthCode.
-    try {
-      const raw = sessionStorage.getItem(ZYAPP_CAMERA_TOKEN_STORAGE_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as unknown;
-      const tokenFromApi = extractCameraToken(parsed);
-      if (!tokenFromApi) return;
-      setCameraToken(tokenFromApi);
-      setCameraTokenMsg("Đã nhận cameraToken từ response user-info (flow requestAuthAndPhone).");
-      addLog("[CHECK][USER_INFO_API] cameraToken loaded for JSAPI", {
-        tokenPreview: tokenFromApi.slice(0, 8) + "…",
-      });
-    } catch (err) {
-      addLog("[CHECK][USER_INFO_API] failed to read stored response", err);
-    }
-  }, []);
-
-  const onGetCameraToken = async (e: React.FormEvent) => {
+  const onRefreshPhone = async (e: React.FormEvent) => {
     e.preventDefault();
-    setCameraTokenLoading(true);
-    setCameraToken("");
-    setCameraTokenMsg("");
+    setRefreshMsg("");
     setCameraCallResult("");
     setCameraCallMsg("");
-
     try {
-      if (!username) throw new Error("Chưa có username (userPhone rỗng)");
-      const auth = await getAuthCode();
-      const tk = String(auth.authCode ?? "").trim();
-      if (!tk) throw new Error("Không lấy được authCode");
-      setCameraToken(tk);
-      setCameraTokenMsg("Đã refresh cameraToken từ authCode (wv.getAuthCode).");
-      addLog("[CHECK][AUTH_CODE] refresh button got authCode", { authCodePreview: tk.slice(0, 8) + "…" });
+      await requestAuthAndPhone();
+      setRefreshMsg("Đã refresh SĐT + cameraToken từ /oauth/user-info.");
+      addLog("[CHECK][REFRESH_AUTH] success via requestAuthAndPhone");
     } catch (err) {
-      setCameraTokenMsg(`Refresh cameraToken từ authCode lỗi: ${err instanceof Error ? err.message : String(err)}`);
-    } finally {
-      setCameraTokenLoading(false);
+      setRefreshMsg(`Refresh lỗi: ${err instanceof Error ? err.message : String(err)}`);
     }
   };
 
@@ -143,17 +109,20 @@ export const ZYAppPage: React.FC = () => {
       jsapiStatus: "calling",
       jsapiCalledAt: new Date().toISOString(),
     });
-    addLog("[CHECK][JSAPI_CALL] start makeCallFromCamera");
+    addLog("[CHECK][JSAPI_CALL] start makeCallFromCamera", {
+      hasCameraToken: Boolean(cameraToken),
+      tokenPreview: cameraToken ? cameraToken.slice(0, 8) + "…" : "",
+    });
     try {
       if (!cameraToken) {
-        throw new Error("Chưa có cameraToken từ flow requestAuthAndPhone/user-info. Hãy auth lại hoặc bấm 'Refresh token từ authCode'.");
+        throw new Error("Chưa có cameraToken từ /oauth/user-info. Hãy bấm 'Refresh auth' hoặc chờ auth flow hoàn tất.");
       }
       await onWindVaneReady();
       if (!isWindVaneReady()) {
         throw new Error("WindVane chưa sẵn sàng — không gọi được makeCallFromCamera.");
       }
       const res = await makeCallFromCameraByJsapi(cameraToken);
-      setCameraCallMsg("Đã gọi JSAPI makeCallFromCamera bằng cameraToken hiện tại.");
+      setCameraCallMsg("Đã gọi JSAPI makeCallFromCamera bằng cameraToken từ /oauth/user-info.");
       setCameraCallResult(JSON.stringify(res, null, 2));
       updateCameraFlowTrace({
         jsapiStatus: "success",
@@ -196,10 +165,17 @@ export const ZYAppPage: React.FC = () => {
             </div>
           )}
 
-          <form onSubmit={onGetCameraToken} style={{ display: "grid", gap: 10 }}>
+          <div style={{ marginTop: 8, fontSize: 12, color: "#1a2332" }}>
+            SĐT: <strong>{phone || "(chưa có)"}</strong>
+          </div>
+          <div style={{ marginTop: 4, fontSize: 12, color: "#1a2332" }}>
+            cameraToken: <strong>{cameraToken ? cameraToken.slice(0, 12) + "…" : "(chưa có)"}</strong>
+          </div>
+
+          <form onSubmit={(e) => void onRefreshPhone(e)} style={{ display: "grid", gap: 10, marginTop: 8 }}>
             <button
               type="submit"
-              disabled={cameraTokenLoading}
+              disabled={authLoading}
               style={{
                 width: "100%",
                 height: 42,
@@ -209,29 +185,23 @@ export const ZYAppPage: React.FC = () => {
                 color: "#1a2332",
                 fontWeight: 700,
                 fontSize: 14,
-                cursor: cameraTokenLoading ? "default" : "pointer",
-                opacity: cameraTokenLoading ? 0.7 : 1,
+                cursor: authLoading ? "default" : "pointer",
+                opacity: authLoading ? 0.7 : 1,
               }}
             >
-              {cameraTokenLoading ? "Đang lấy authCode..." : "Refresh token từ authCode"}
+              {authLoading ? "Đang lấy..." : "Refresh auth (auth → /oauth/user-info)"}
             </button>
           </form>
 
-          {!!cameraTokenMsg && (
+          {!!refreshMsg && (
             <div style={{ marginTop: 8, color: "#128a57", fontSize: 13, fontWeight: 600 }}>
-              {cameraTokenMsg}
-            </div>
-          )}
-
-          {!!cameraToken && (
-            <div style={{ marginTop: 8, color: "#1a2332", fontSize: 12, wordBreak: "break-all" }}>
-              cameraToken: <strong>{cameraToken}</strong>
+              {refreshMsg}
             </div>
           )}
 
           <button
             type="button"
-            disabled={cameraCallLoading}
+            disabled={cameraCallLoading || !cameraToken}
             onClick={() => void onCallMakeCallFromCamera()}
             style={{
               marginTop: 10,

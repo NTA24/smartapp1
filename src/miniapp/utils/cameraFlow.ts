@@ -13,7 +13,7 @@ export function updateCameraFlowTrace(patch: Record<string, unknown>): void {
 export function extractCameraToken(payload: unknown): string {
   if (!payload || typeof payload !== "object") return "";
   const p = payload as Record<string, unknown>;
-  const tokenCandidates = [
+  const candidates = [
     p.cameraToken,
     p.token,
     (p.data as Record<string, unknown> | undefined)?.cameraToken,
@@ -21,8 +21,8 @@ export function extractCameraToken(payload: unknown): string {
     (p.result as Record<string, unknown> | undefined)?.cameraToken,
     (p.result as Record<string, unknown> | undefined)?.token,
   ];
-  for (const candidate of tokenCandidates) {
-    const v = String(candidate ?? "").trim();
+  for (const c of candidates) {
+    const v = String(c ?? "").trim();
     if (v) return v;
   }
   return "";

@@ -10,6 +10,8 @@
  *    → VITE_ENABLE_DEVTOOLS=true hoặc ?devtools=1 hoặc localStorage miniapp_devtools=1
  */
 
+import { addLog } from "./debugLog";
+
 let erudaInitDone = false;
 let tracingInitDone = false;
 let vconsoleInitDone = false;
@@ -141,58 +143,53 @@ export function initMiniAppTracing(): void {
   if (!isMiniAppLogUiEnabled() && !isMiniAppDevtoolsEnabled()) return;
   tracingInitDone = true;
 
-  // Lazy import to avoid circulars at module init
-  import("./debugLog").then(({ addLog }) => {
-    addLog("Tracing enabled: fetch + WindVane.call");
+  addLog("Tracing enabled: fetch + WindVane.call");
 
-    if (!window.__miniapp_fetch_wrapped__ && typeof window.fetch === "function") {
-      const origFetch = window.fetch.bind(window);
-      window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
-        const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
-        const method = String(init?.method ?? "GET").toUpperCase();
-        addLog("[TRACE fetch req]", method, url);
-        const res = await origFetch(input, init);
-        addLog("[TRACE fetch res]", method, url, "status=", res.status);
-        if (res.status === 401) {
-          try {
-            const text = await res.clone().text();
-            addLog("[TRACE fetch 401 body]", text.slice(0, 600));
-          } catch {
-            addLog("[TRACE fetch 401 body] <unreadable>");
-          }
+  if (!window.__miniapp_fetch_wrapped__ && typeof window.fetch === "function") {
+    const origFetch = window.fetch.bind(window);
+    window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+      const method = String(init?.method ?? "GET").toUpperCase();
+      addLog("[TRACE fetch req]", method, url);
+      const res = await origFetch(input, init);
+      addLog("[TRACE fetch res]", method, url, "status=", res.status);
+      if (res.status === 401) {
+        try {
+          const text = await res.clone().text();
+          addLog("[TRACE fetch 401 body]", text.slice(0, 600));
+        } catch {
+          addLog("[TRACE fetch 401 body] <unreadable>");
         }
-        return res;
-      };
-      window.__miniapp_fetch_wrapped__ = true;
-    }
+      }
+      return res;
+    };
+    window.__miniapp_fetch_wrapped__ = true;
+  }
 
-    if (!window.__miniapp_wv_wrapped__ && typeof window.WindVane?.call === "function") {
-      const origCall = window.WindVane.call.bind(window.WindVane);
-      window.WindVane.call = <TSuccess = unknown, TError = unknown>(
-        className: string,
-        method: string,
-        params: unknown,
-        ok?: (res: TSuccess) => void,
-        err?: (e: TError) => void
-      ) => {
-        addLog("[TRACE WV req]", `${className}.${method}`, params ?? {});
-        return origCall(
-          className,
-          method,
-          params,
-          (res: TSuccess) => {
-            addLog("[TRACE WV ok]", `${className}.${method}`, res ?? {});
-            ok?.(res);
-          },
-          (e: TError) => {
-            addLog("[TRACE WV err]", `${className}.${method}`, e ?? {});
-            err?.(e);
-          },
-        );
-      };
-      window.__miniapp_wv_wrapped__ = true;
-    }
-  }).catch(() => {
-    // ignore
-  });
+  if (!window.__miniapp_wv_wrapped__ && typeof window.WindVane?.call === "function") {
+    const origCall = window.WindVane.call.bind(window.WindVane);
+    window.WindVane.call = <TSuccess = unknown, TError = unknown>(
+      className: string,
+      method: string,
+      params: unknown,
+      ok?: (res: TSuccess) => void,
+      err?: (e: TError) => void
+    ) => {
+      addLog("[TRACE WV req]", `${className}.${method}`, params ?? {});
+      return origCall(
+        className,
+        method,
+        params,
+        (res: TSuccess) => {
+          addLog("[TRACE WV ok]", `${className}.${method}`, res ?? {});
+          ok?.(res);
+        },
+        (e: TError) => {
+          addLog("[TRACE WV err]", `${className}.${method}`, e ?? {});
+          err?.(e);
+        },
+      );
+    };
+    window.__miniapp_wv_wrapped__ = true;
+  }
 }
