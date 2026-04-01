@@ -4,7 +4,9 @@ import { MiniAppProvider } from "./context/MiniAppContext";
 import { StatusBar } from "./components/StatusBar";
 import { BottomNav } from "./components/BottomNav";
 import { HomePage } from "./pages/HomePage";
-import { ZYAppPage } from "./pages/ZYAppPage";
+import { CameraPage } from "./pages/CameraPage";
+import { MultiCameraViewPage } from "./pages/MultiCameraViewPage";
+import { CameraSdkPage } from "./pages/CameraSdkPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { DevicePage } from "./pages/DevicePage";
 import { DeviceTimerPage } from "./pages/DeviceTimerPage";
@@ -61,7 +63,9 @@ export default function App() {
         <Layout>
           <Routes>
             <Route path="/" element={<HomePage />} />
-            <Route path="/zyapp" element={<ZYAppPage />} />
+            <Route path="/zyapp" element={<CameraPage />} />
+            <Route path="/zyapp/multi-view" element={<MultiCameraViewPage />} />
+            <Route path="/zyapp/camera/:cameraId" element={<CameraSdkPage />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/device/:deviceId" element={<DevicePage />} />
             <Route path="/device/:deviceId/timer" element={<DeviceTimerPage />} />

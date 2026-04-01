@@ -1,5 +1,6 @@
 import { addLog } from "../lib/debugLog";
 import { CAMERA_FLOW_TRACE_KEY } from "../lib/storageKeys";
+import { isWindVaneReady, onWindVaneReady } from "../services/auth";
 
 export function updateCameraFlowTrace(patch: Record<string, unknown>): void {
   try {
@@ -59,6 +60,36 @@ export function callMakeCallFromCamera(token: string, cameraUIDs: string[] = [])
       },
     );
   });
+}
+
+/** Chuẩn bị WindVane + gọi makeCallFromCamera + trace — dùng chung Camera / Smart Home. */
+export async function runMakeCallFromCameraFlow(token: string, cameraUIDs: string[], source: string): Promise<void> {
+  const t = String(token ?? "").trim();
+  if (!t) throw new Error("Chưa có cameraToken. Hãy đăng nhập lại.");
+
+  updateCameraFlowTrace({
+    jsapiStatus: "calling",
+    jsapiCalledAt: new Date().toISOString(),
+    source,
+  });
+  addLog("[runMakeCallFromCameraFlow]", { source, uids: cameraUIDs });
+
+  try {
+    await onWindVaneReady();
+    if (!isWindVaneReady()) throw new Error("WindVane chưa sẵn sàng.");
+    await callMakeCallFromCamera(t, cameraUIDs);
+    updateCameraFlowTrace({
+      jsapiStatus: "success",
+      jsapiResponseAt: new Date().toISOString(),
+      source,
+    });
+    addLog("[runMakeCallFromCameraFlow] OK", { source });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    updateCameraFlowTrace({ jsapiStatus: "error", jsapiError: msg, source });
+    addLog("[runMakeCallFromCameraFlow] error", msg);
+    throw err;
+  }
 }
 
 export function extractCameraToken(payload: unknown): string {

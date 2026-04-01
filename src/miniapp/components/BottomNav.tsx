@@ -15,6 +15,10 @@ export const BottomNav: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const pathname = location.pathname || "/";
+
+  // Tránh chồng UI khi đang mở trang điều khiển camera (UI host/SDK full-screen).
+  if (pathname.startsWith("/zyapp/camera/")) return null;
+
   const currentPage = pathname === "/" ? "home" : pathname.split("/")[1] || "home";
 
   const onNavItemClick =

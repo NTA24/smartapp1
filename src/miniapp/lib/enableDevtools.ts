@@ -100,11 +100,59 @@ export async function initMiniAppDevtools(): Promise<void> {
  */
 export async function initMiniAppVConsole(): Promise<void> {
   if (typeof window === "undefined" || !isMiniAppDevtoolsEnabled()) return;
+  // HashRouter: url có dạng "#/zyapp/..." (pathname vẫn là "/").
+  const isCameraRoute = () => {
+    const h = String(window.location.hash ?? "").toLowerCase();
+    return (
+      h.includes("zyapp/camera/") ||
+      h.includes("zyapp/multi-view") ||
+      h === "#/zyapp" ||
+      h.startsWith("#/zyapp/")
+    );
+  };
+
+  const hideVConsoleUi = () => {
+    if (!isCameraRoute()) return;
+
+    try {
+      // Container hay gặp nhất: #vconsole
+      const byId = ["vconsole", "vConsole", "miniapp-vconsole", "miniapp-vconsole-root"];
+      for (const id of byId) {
+        const el = document.getElementById(id);
+        if (el) el.style.display = "none";
+      }
+
+      // Nút trigger: thường có text chứa "vConsole"
+      document.querySelectorAll("button,div,span").forEach((el) => {
+        const t = (el.textContent ?? "").trim();
+        if (!t) return;
+        if (t === "vConsole" || t.includes("vConsole")) {
+          (el as HTMLElement).style.display = "none";
+        }
+      });
+    } catch {
+      // ignore
+    }
+  };
+
+  // Dù vConsole init trước đó hay init sau, vẫn cần hide khi chuyển sang route camera.
+  window.addEventListener("hashchange", hideVConsoleUi);
+  window.addEventListener("popstate", hideVConsoleUi);
+  hideVConsoleUi();
+
   if (vconsoleInitDone) return;
 
   // Nếu host app/SDK đã cài sẵn vConsole thì không khởi tạo lại.
   if (window.vConsole || window.__miniapp_vconsole__) {
     vconsoleInitDone = true;
+    hideVConsoleUi();
+    return;
+  }
+
+  // Không init mới khi đang ở route camera.
+  if (isCameraRoute()) {
+    vconsoleInitDone = true;
+    hideVConsoleUi();
     return;
   }
 
@@ -132,6 +180,7 @@ export async function initMiniAppVConsole(): Promise<void> {
       console.info("[MiniApp] vConsole enabled.");
     }
     vconsoleInitDone = true;
+    hideVConsoleUi();
   } catch (e) {
     console.warn("[MiniApp devtools] vConsole init failed", e);
   }
