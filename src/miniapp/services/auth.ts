@@ -1,5 +1,4 @@
 import { getApiBase, getMiniAppAppId, DEFAULT_SCOPES } from "../lib/config";
-import { addLog } from "../lib/debugLog";
 import { getAuthCode as apiGetAuthCode } from "../../api/authentication/getAuthCode";
 import { authorize } from "../../api/permissions/authorize";
 import { getLocation } from "../../api/location/getLocation";
@@ -14,22 +13,19 @@ export function isWindVaneReady(): boolean {
 export function onWindVaneReady(): Promise<void> {
   return new Promise((resolve) => {
     if (isWindVaneReady()) {
-      addLog("onWindVaneReady: WindVane đã có sẵn");
       return resolve();
     }
 
-    addLog("onWindVaneReady: đợi event + poll", WV_POLL_INTERVAL_MS + "ms, timeout", WV_READY_TIMEOUT_MS + "ms");
     let done = false;
-    const finish = (by: string) => {
+    const finish = () => {
       if (done) return;
       done = true;
-      addLog("onWindVaneReady: kết thúc —", by, "| WindVane?", !!window.WindVane, "| .call?", typeof window.WindVane?.call);
       resolve();
     };
 
     // 1. Lắng nghe event WindVaneReady (super app có thể fire khi inject xong)
     if (typeof document !== "undefined") {
-      document.addEventListener("WindVaneReady", () => finish("event WindVaneReady"), { once: true });
+      document.addEventListener("WindVaneReady", () => finish(), { once: true });
     }
 
     // 2. Poll kiểm tra window.WindVane
@@ -41,26 +37,23 @@ export function onWindVaneReady(): Promise<void> {
       }
       if (isWindVaneReady()) {
         clearInterval(pollId);
-        finish("poll");
+        finish();
       } else if (Date.now() - pollStart >= WV_READY_TIMEOUT_MS) {
         clearInterval(pollId);
-        finish("timeout " + WV_READY_TIMEOUT_MS + "ms");
+        finish();
       }
     }, WV_POLL_INTERVAL_MS);
 
     // 3. Timeout tổng
     setTimeout(() => {
       clearInterval(pollId);
-      if (!done) finish("setTimeout " + WV_READY_TIMEOUT_MS + "ms");
+      if (!done) finish();
     }, WV_READY_TIMEOUT_MS);
   });
 }
 
 /** Một số nền tảng (Tammi) chỉ chấp nhận scope "auth_user" thay vì USER_NAME/USER_PHONE_NUMBER */
 const FALLBACK_SCOPES = ["auth_user"];
-const API_AUTHORIZE = "WindVane.call('wv','authorize',{scope})";
-const API_GET_LOCATION = "WindVane.call('WVLocation','getLocation',params)";
-const API_GET_AUTH_CODE = "WindVane.call('wv','getAuthCode',{appId,scopes})";
 
 function errorMessage(err: unknown): string {
   if (err instanceof Error) return err.message;
@@ -70,36 +63,28 @@ function errorMessage(err: unknown): string {
 
 async function ensurePermissions(scopes: string[]): Promise<void> {
   try {
-    addLog("[API] authorize — " + API_AUTHORIZE + " scope=location");
     await authorize("location");
-    addLog("[API] authorize OK — " + API_AUTHORIZE);
-  } catch (e) {
-    addLog("[API] LỖI authorize — " + API_AUTHORIZE + " | ", e);
+  } catch {
+    /* ignore */
   }
 
   try {
-    addLog("[API] getLocation — " + API_GET_LOCATION);
     await getLocation({});
-    addLog("[API] getLocation OK — " + API_GET_LOCATION);
-  } catch (e) {
-    addLog("[API] LỖI getLocation — " + API_GET_LOCATION + " | ", e);
+  } catch {
+    /* ignore */
   }
 
   for (const scope of scopes) {
     try {
-      addLog("[API] authorize — " + API_AUTHORIZE + " scope=" + scope);
       await authorize(scope);
-      addLog("[API] authorize OK — " + API_AUTHORIZE);
-    } catch (e) {
-      addLog("[API] LỖI authorize scope=" + scope + " — " + API_AUTHORIZE + " | ", e);
+    } catch {
+      /* ignore */
     }
   }
 }
 
 async function tryGetAuthCode(appId: string, scopes: string[]): Promise<{ authCode: string; scopes: string[] }> {
-  addLog("[API] getAuthCode — " + API_GET_AUTH_CODE + " appId=" + appId.slice(0, 12) + ".. scopes=" + scopes.join(","));
   const result = await apiGetAuthCode(appId, scopes);
-  addLog("[API] getAuthCode OK — " + API_GET_AUTH_CODE);
   return { authCode: result.authCode, scopes };
 }
 
@@ -110,13 +95,11 @@ async function getAuthCodeWithRetry(
   try {
     await onWindVaneReady();
     if (!isWindVaneReady()) {
-      addLog("getAuthCode: WindVane chưa sẵn sàng sau khi đợi");
       throw new Error("WindVane chưa sẵn sàng");
     }
 
     const appId = getMiniAppAppId();
     if (!appId) {
-      addLog("getAuthCode: appId rỗng");
       throw new Error("appId đang rỗng");
     }
 
@@ -130,24 +113,19 @@ async function getAuthCodeWithRetry(
         /no location permission|No consent data available|consent|HY_FAILED/i.test(firstMsg);
 
       if (isLocationOrConsentError) {
-        addLog("[API] LỖI getAuthCode — " + API_GET_AUTH_CODE + " | " + firstMsg);
-        addLog("[API] Retry: getLocation + authorize rồi gọi lại getAuthCode...");
         await ensurePermissions(scopes);
         try {
           return await tryGetAuthCode(appId, scopes);
-        } catch (retryErr: unknown) {
+        } catch {
           const usedFallback = !scopes.includes("auth_user");
           if (usedFallback) {
-            addLog("[API] Thử fallback authorize + getAuthCode với scope auth_user");
             try {
-              addLog("[API] authorize — " + API_AUTHORIZE + " scope=auth_user");
               await authorize("auth_user");
               return await tryGetAuthCode(appId, FALLBACK_SCOPES);
-            } catch (authUserErr: unknown) {
-              addLog("[API] LỖI getAuthCode (auth_user) — " + API_GET_AUTH_CODE + " | ", authUserErr);
+            } catch {
+              /* fall through */
             }
           }
-          addLog("[API] LỖI cuối — getAuthCode — " + API_GET_AUTH_CODE + " | ", retryErr);
           throw new Error(
             "Chưa có quyền truy cập (No consent data available). Vui lòng vào Tammi → Cài đặt → Quyền Mini App → bật Vị trí và Số điện thoại cho app này, rồi mở lại và bấm Cho phép."
           );
@@ -159,11 +137,9 @@ async function getAuthCodeWithRetry(
     const msg = errorMessage(err);
     const isNotReady = msg.includes("WindVane") && (msg.includes("not available") || msg.includes("chưa sẵn sàng"));
     if (isNotReady && attempt < 3) {
-      addLog("getAuthCode: retry", attempt + 1, "/ 3 —", msg);
       await new Promise<void>((r) => setTimeout(r, 400));
       return getAuthCodeWithRetry(scopes, attempt + 1);
     }
-    addLog("[API] LỖI getAuthCode (WindVane/retry) — " + msg, err);
     throw err;
   }
 }
@@ -215,11 +191,9 @@ function parseSuperAppLoginResult(data: unknown): SuperAppLoginResult {
 export async function loginMiniApp(
   scopes: string[] = [...DEFAULT_SCOPES]
 ): Promise<SuperAppLoginResult> {
-  addLog("loginMiniApp: bắt đầu scopes=", scopes.join(","));
   const auth = await getAuthCode(scopes);
   const apiBase = getApiBase();
   const superappLoginUrl = `${apiBase}/auth/superapp-login`;
-  addLog("[API] superapp-login — POST " + superappLoginUrl + " | scopes=" + auth.scopes.join(","));
   const res = await fetch(superappLoginUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -231,11 +205,6 @@ export async function loginMiniApp(
   });
   const raw = await res.json().catch(() => null);
   const data = parseSuperAppLoginResult(raw);
-  if (data?.success) {
-    addLog("[API] superapp-login OK — " + superappLoginUrl + " | có số ĐT? " + !!getPhoneFromLoginResult(data));
-  } else {
-    addLog("[API] LỖI superapp-login — " + superappLoginUrl + " | " + (data?.error ?? data?.message ?? JSON.stringify(data)));
-  }
   return data;
 }
 

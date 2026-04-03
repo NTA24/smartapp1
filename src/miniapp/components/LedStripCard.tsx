@@ -1,0 +1,124 @@
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { BulbOutlined } from "@ant-design/icons";
+import { useLedStripStatesWs } from "../lib/tbWebSocket";
+import { postDeviceSharedScopeLedColorTemp, postDeviceSharedScopeLedLight } from "../services/deviceControlHttp";
+
+export interface LedStripCardProps {
+  deviceId: string;
+  title: string;
+}
+
+const SLIDER_DEBOUNCE_MS = 400;
+
+export const LedStripCard: React.FC<LedStripCardProps> = ({ deviceId, title }) => {
+  const { lightOn, colorTemp, wsRev } = useLedStripStatesWs(deviceId);
+  const [lightBusy, setLightBusy] = useState(false);
+  const [sliderBusy, setSliderBusy] = useState(false);
+  const [localTemp, setLocalTemp] = useState<number | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setLocalTemp(null);
+  }, [wsRev, colorTemp]);
+
+  const displayTemp = localTemp !== null ? localTemp : (colorTemp ?? 50);
+  const displayOn = lightOn ?? false;
+
+  const onToggleLight = async () => {
+    if (lightBusy) return;
+    setLightBusy(true);
+    try {
+      await postDeviceSharedScopeLedLight(deviceId, !displayOn);
+    } finally {
+      setLightBusy(false);
+    }
+  };
+
+  const sendColorTemp = useCallback(
+    async (v: number) => {
+      setSliderBusy(true);
+      try {
+        await postDeviceSharedScopeLedColorTemp(deviceId, v);
+      } finally {
+        setSliderBusy(false);
+      }
+    },
+    [deviceId],
+  );
+
+  const scheduleColorTemp = useCallback(
+    (v: number) => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(() => {
+        debounceRef.current = null;
+        void sendColorTemp(v);
+      }, SLIDER_DEBOUNCE_MS);
+    },
+    [sendColorTemp],
+  );
+
+  useEffect(
+    () => () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    },
+    [],
+  );
+
+  return (
+    <div className="device-card device-card--led-strip device-card--kind-light">
+      <div className="card-header">
+        <div className="device-icon-wrap" aria-hidden>
+          <BulbOutlined />
+        </div>
+        <div className="led-strip-card__header-text">
+          <div className="device-name">{title}</div>
+          <div className="device-meta">
+            <span>LED strip</span>
+            <span>{sliderBusy ? "Đang gửi…" : displayOn ? "Bật" : "Tắt"}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="led-strip-card__slider-block">
+        <div className="led-strip-card__slider-label">
+          <span>Nhiệt độ màu</span>
+          <strong className="led-strip-card__slider-value">{displayTemp}</strong>
+        </div>
+        <input
+          type="range"
+          className="led-strip-card__range"
+          min={0}
+          max={100}
+          step={1}
+          value={displayTemp}
+          disabled={sliderBusy}
+          aria-label="Nhiệt độ màu 0–100"
+          onChange={(e) => {
+            const v = Number(e.target.value);
+            setLocalTemp(v);
+            scheduleColorTemp(v);
+          }}
+        />
+        <div className="led-strip-card__range-ticks" aria-hidden>
+          <span>0</span>
+          <span>100</span>
+        </div>
+      </div>
+
+      <div className="led-strip-card__switch-row">
+        <span className="led-strip-card__switch-label">Bật / tắt</span>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={displayOn}
+          aria-busy={lightBusy}
+          disabled={lightBusy}
+          className={`led-strip-card__switch ${displayOn ? "led-strip-card__switch--on" : ""}`.trim()}
+          onClick={() => void onToggleLight()}
+        >
+          <span className="led-strip-card__switch-knob" />
+        </button>
+      </div>
+    </div>
+  );
+};

@@ -2,7 +2,6 @@ import React, { useCallback, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { BellOutlined, PlusOutlined, PhoneOutlined, HomeOutlined } from "@ant-design/icons";
 import { useMiniApp } from "../context/MiniAppContext";
-import { addLog } from "../lib/debugLog";
 import { isWindVaneReady, onWindVaneReady } from "../services/auth";
 import { callMakeCallFromCamera, updateCameraFlowTrace } from "../utils/cameraFlow";
 
@@ -34,7 +33,6 @@ export const StatusBar: React.FC = () => {
       e.stopPropagation();
       const token = String(cameraToken ?? "").trim();
       if (!token) {
-        addLog("[incoming-call] Accept: chưa có cameraToken (cần auth /oauth/user-info)");
         closeIncomingCallDialog();
         return;
       }
@@ -47,17 +45,14 @@ export const StatusBar: React.FC = () => {
           jsapiCalledAt: new Date().toISOString(),
           source: "incoming-call-accept",
         });
-        addLog("[incoming-call] gọi IOTPlatFormService.makeCallFromCamera (Accept)");
         await callMakeCallFromCamera(token, cameraUIDs);
         updateCameraFlowTrace({
           jsapiStatus: "success",
           jsapiResponseAt: new Date().toISOString(),
           source: "incoming-call-accept",
         });
-        addLog("[incoming-call] makeCallFromCamera thành công");
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        addLog("[incoming-call] makeCallFromCamera lỗi:", msg);
         updateCameraFlowTrace({
           jsapiStatus: "error",
           jsapiError: msg,
@@ -67,7 +62,6 @@ export const StatusBar: React.FC = () => {
         setAcceptLoading(false);
         closeIncomingCallDialog();
         navigate("/zyapp", { replace: false });
-        addLog("[incoming-call] điều hướng → /zyapp (sau Accept)");
       }
     },
     [cameraToken, cameraUIDs, closeIncomingCallDialog, navigate],
@@ -76,6 +70,9 @@ export const StatusBar: React.FC = () => {
   return (
     <>
       <header className="status-bar">
+        <Link to="/" className="status-bar__brand" aria-label="Newgen · Trang chủ">
+          <img src="/newgen-logo.png" alt="" className="status-bar__logo" width={132} height={36} decoding="async" />
+        </Link>
         <div className="status-icons">
           <button
             type="button"

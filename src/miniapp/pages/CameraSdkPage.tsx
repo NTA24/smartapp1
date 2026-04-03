@@ -22,8 +22,6 @@ import {
   UserOutlined,
 } from "@ant-design/icons";
 import { LeftOutlined } from "@ant-design/icons";
-import { addLog } from "../lib/debugLog";
-
 const CAMERA_THUMBS = [
   "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&q=80&auto=format&fit=crop",
   "https://images.unsplash.com/photo-1497366216548-37526070297c?w=600&q=80&auto=format&fit=crop",
@@ -305,7 +303,7 @@ export const CameraSdkPage: React.FC = () => {
             <div className="camera-sdk-page__panelTitle">Sự kiện</div>
             <div className="camera-sdk-page__eventsList">
               {events.map((ev) => (
-                <button key={ev.id} type="button" className="camera-sdk-page__eventItem" onClick={() => addLog("[CameraSdk] event click", ev.id)}>
+                <button key={ev.id} type="button" className="camera-sdk-page__eventItem" onClick={() => {}}>
                   <div className="camera-sdk-page__eventTime">{ev.time}</div>
                   <img className="camera-sdk-page__eventThumb" src={ev.thumb} alt="" loading="lazy" />
                   <div className="camera-sdk-page__eventLabel">{ev.label}</div>

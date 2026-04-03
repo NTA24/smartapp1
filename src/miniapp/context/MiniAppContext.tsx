@@ -2,11 +2,11 @@ import React, { createContext, useCallback, useContext, useEffect, useRef, useSt
 import { getMiniAppAppId, getApiBase, saveAppId, STORAGE_KEY_APP_ID, DEFAULT_MINIAPP_APP_ID } from "../lib/config";
 import { storeGet } from "../lib/store";
 import { getAuthCode, onWindVaneReady } from "../services/auth";
-import { addLog } from "../lib/debugLog";
 import { getPhoneFromUserInfo, getUserInfoByAuthCode } from "../../api/authentication/getUserInfoByAuthCode";
 import { getDevicesByUsername, type SmartBuildingDeviceRecord } from "../services/deviceSync";
 import { extractCameraToken, extractCameraUIDs } from "../utils/cameraFlow";
 import { ZYAPP_CAMERA_TOKEN_STORAGE_KEY } from "../lib/storageKeys";
+import { tbWsManager } from "../lib/tbWebSocket";
 
 interface MiniAppState {
   userPhone: string;
@@ -67,6 +67,11 @@ export function MiniAppProvider({ children }: { children: React.ReactNode }) {
 
   const didRequestRef = useRef(false);
 
+  /** Mở WS sớm khi có `VITE_NEWGEN_WS_JWT`. */
+  useEffect(() => {
+    tbWsManager.ensureConnected();
+  }, []);
+
   const setUserPhone = useCallback((phone: string) => {
     setState((s) => ({ ...s, userPhone: phone }));
     if (typeof window !== "undefined") window.MINIAPP_USER_PHONE = phone;
@@ -93,75 +98,49 @@ export function MiniAppProvider({ children }: { children: React.ReactNode }) {
     try {
       const devices = await getDevicesByUsername(username);
       setDevices(devices);
-      addLog("refreshDevices: fetched", devices.length, "devices for", username);
-    } catch (e) {
-      addLog("refreshDevices: error", e);
+    } catch {
+      /* ignore */
     }
   }, [setDevices, state.userPhone]);
 
   const requestAuthAndPhone = useCallback(async () => {
-    addLog("[CHECK][AUTH_CODE] start getAuthCode via wv.getAuthCode");
     setState((s) => ({ ...s, authLoading: true, authError: "" }));
     try {
       // Phone is resolved from `/oauth/user-info`, so request the scopes that endpoint relies on.
       const auth = await getAuthCode(["USER_NAME", "USER_EMAIL"]);
-      addLog("[CHECK][AUTH_CODE] success", {
-        hasAuthCode: Boolean(String(auth?.authCode ?? "").trim()),
-        authCodePreview: String(auth?.authCode ?? "").slice(0, 8) + "…",
-      });
-      addLog("[CHECK][USER_INFO_API] request POST /api/v1/mini-app/oauth/user-info", {
-        hasAuthCode: Boolean(String(auth?.authCode ?? "").trim()),
-      });
       const info = await getUserInfoByAuthCode(auth.authCode);
-      addLog("[CHECK][USER_INFO_API] response", info);
       const phone = getPhoneFromUserInfo(info);
       const camToken = extractCameraToken(info);
       const camUIDs = extractCameraUIDs(info);
-      addLog("[CHECK][USER_INFO_API] phone & cameraToken extracted", {
-        hasPhone: Boolean(phone),
-        phonePreview: phone ? phone.slice(0, 4) + "***" : "",
-        hasCameraToken: Boolean(camToken),
-        tokenPreview: camToken ? camToken.slice(0, 8) + "…" : "",
-        cameraUIDCount: camUIDs.length,
-      });
 
       if (camToken || camUIDs.length > 0) {
         setState((s) => ({ ...s, cameraToken: camToken, cameraUIDs: camUIDs }));
         try {
           sessionStorage.setItem(ZYAPP_CAMERA_TOKEN_STORAGE_KEY, JSON.stringify(info));
-        } catch (e) {
-          addLog("[CHECK][USER_INFO_API] sessionStorage store error", e);
+        } catch {
+          /* ignore */
         }
       }
 
       if (phone) {
-        addLog("requestAuthAndPhone: OK, số ĐT=", phone);
         setUserPhone(phone);
         try {
           const devices = await getDevicesByUsername(phone);
           setDevices(devices);
-          addLog("requestAuthAndPhone: fetched", devices.length, "devices");
-        } catch (e) {
-          addLog("requestAuthAndPhone: get devices error", e);
+        } catch {
+          /* ignore */
         }
-      } else {
-        addLog("[CHECK][USER_INFO_API] username missing in response", info);
       }
       // Author: đồng bộ trạng thái quyền sau khi auth xong
       const P = window.MiniAppPermissions;
       if (P?.getSetting) {
-        const settings = await P.getSetting().catch((e) => {
-          addLog("requestAuthAndPhone: getSetting lỗi", e);
-          return null;
-        });
+        const settings = await P.getSetting().catch(() => null);
         if (settings?.authSetting && P.setPermissionStatus) {
           P.setPermissionStatus(settings.authSetting);
-          addLog("requestAuthAndPhone: đã đồng bộ quyền thiết bị");
         }
       }
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
-      addLog("[CHECK][AUTH_FLOW] error", e);
       setState((s) => ({ ...s, authError: msg || "Auth flow failed" }));
       throw e;
     } finally {
@@ -199,17 +178,14 @@ export function MiniAppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    let cancelled = false;
-    (async () => {
+    void (async () => {
       try {
         await initializeMiniApp();
-      } catch (e) {
-        if (!cancelled) {
-          addLog("[CHECK][INIT_FLOW] error", e);
-        }
+      } catch {
+        /* ignore */
       }
     })();
-    return () => { cancelled = true; };
+    return undefined;
   }, [initializeMiniApp]);
 
   const value: MiniAppContextValue = {

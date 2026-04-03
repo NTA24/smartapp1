@@ -1,55 +1,45 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Link, NavLink } from "react-router-dom";
-import { CloudOutlined, BulbOutlined, MenuOutlined, SettingOutlined, SearchOutlined } from "@ant-design/icons";
+import { MenuOutlined, SettingOutlined, SearchOutlined } from "@ant-design/icons";
 import { DeviceCard } from "../components/DeviceCard";
-import { HomeCameraCard } from "../components/HomeCameraCard";
+import { LedStripCard } from "../components/LedStripCard";
+import { SmokeSensorCard } from "../components/SmokeSensorCard";
+import { HumanSensorCard } from "../components/HumanSensorCard";
 import { useMiniApp } from "../context/MiniAppContext";
 import { useAuthLoading } from "../hooks/useAuthLoading";
-import { useCameraSdkLoading } from "../hooks/useCameraSdkLoading";
-import { addLog } from "../lib/debugLog";
-import { CAMERA_PREVIEW_IMAGES } from "../lib/cameraPreview";
-import { isHomeCameraDevice, labelForCameraUid, labelForHomeDevice } from "../lib/homeCamera";
+import {
+  deviceCardIconForKind,
+  deviceCardKindMeta,
+  inferDeviceCardKind,
+} from "../lib/deviceCardKind";
 import type { SmartBuildingDeviceRecord } from "../services/deviceSync";
-import { runMakeCallFromCameraFlow } from "../utils/cameraFlow";
+import {
+  fetchSmartHomeDevicesFromNewgen,
+  isGatewaySocketTelemetryDevice,
+  isHumanSensorTelemetryDevice,
+  isLedStripTelemetryDevice,
+  isSmokeSensorTelemetryDevice,
+  isSmartSwitchTelemetryDevice,
+} from "../services/deviceSync";
+import { sendGatewayPlugHallwayControl } from "../services/deviceControlHttp";
+import { postDeviceSharedScopeSwitchChannel } from "../services/deviceControlHttp";
 
 export const HomePage: React.FC = () => {
   const [menuOpen, setMenuOpen] = useState(false);
-  const { userPhone, devices, refreshDevices, cameraToken, cameraUIDs } = useMiniApp();
+  const { userPhone } = useMiniApp();
   const loadingUser = useAuthLoading(userPhone);
   const [refreshingDevices, setRefreshingDevices] = useState(false);
-  const { loadingUid, runWithLoading } = useCameraSdkLoading();
-  const [sdkBanner, setSdkBanner] = useState<{ type: "ok" | "err"; text: string } | null>(null);
-  const [brokenThumbs, setBrokenThumbs] = useState<Record<string, boolean>>({});
+  /** Smart Home: chỉ NewGen — không gọi campus `by-username`. */
+  const [smartHomeDevices, setSmartHomeDevices] = useState<SmartBuildingDeviceRecord[]>([]);
 
-  const onThumbError = useCallback((key: string) => {
-    setBrokenThumbs((prev) => ({ ...prev, [key]: true }));
+  const loadSmartHomeDevices = useCallback(async () => {
+    const list = await fetchSmartHomeDevicesFromNewgen();
+    setSmartHomeDevices(list);
   }, []);
 
-  const cameraUidSet = useMemo(
-    () => new Set(cameraUIDs.map((u) => String(u).trim()).filter(Boolean)),
-    [cameraUIDs],
-  );
-
-  const token = String(cameraToken ?? "").trim();
-  const hasToken = Boolean(token);
-
-  const openHomeCamera = async (uid: string) => {
-    if (!hasToken) {
-      setSdkBanner({ type: "err", text: "Chưa có cameraToken. Hãy đồng bộ đăng nhập (tab Camera) hoặc đăng nhập lại." });
-      addLog("[HomePage] makeCallFromCamera — thiếu token");
-      return;
-    }
-    setSdkBanner(null);
-    addLog("[HomePage] makeCallFromCamera", { uid });
-    try {
-      await runMakeCallFromCameraFlow(token, [uid], "home-page-camera");
-      setSdkBanner({ type: "ok", text: "Đã gọi makeCallFromCamera." });
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      setSdkBanner({ type: "err", text: msg });
-      addLog("[HomePage] makeCallFromCamera lỗi", msg);
-    }
-  };
+  useEffect(() => {
+    void loadSmartHomeDevices();
+  }, [loadSmartHomeDevices]);
 
   const formatPhone = (phone: string) => {
     const raw = String(phone || "").trim();
@@ -72,15 +62,17 @@ export const HomePage: React.FC = () => {
   const handleRefreshDevices = async () => {
     setRefreshingDevices(true);
     try {
-      await refreshDevices();
+      await loadSmartHomeDevices();
     } finally {
       setRefreshingDevices(false);
     }
   };
 
-  const renderDeviceRow = (d: SmartBuildingDeviceRecord, i: number, cameraIndex: number) => {
-    const type = String(d.deviceType ?? d.device?.type ?? "").toLowerCase();
-    const icon = type.includes("light") || type.includes("đèn") ? <BulbOutlined /> : <CloudOutlined />;
+  const renderDeviceRow = (d: SmartBuildingDeviceRecord, i: number) => {
+    const rawType = String(d.deviceType ?? d.device?.type ?? "Thiết bị");
+    const kind = inferDeviceCardKind(d);
+    const icon = deviceCardIconForKind(kind);
+    const meta = deviceCardKindMeta(kind, rawType);
     const name =
       String(d.label ?? d.device?.label ?? d.name ?? d.device?.name ?? "").trim() ||
       `Thiết bị ${i + 1}`;
@@ -88,23 +80,29 @@ export const HomePage: React.FC = () => {
       String(d.deviceId ?? d.device?.id?.id ?? `${i + 1}`).trim() ||
       `${i + 1}`;
 
-    if (isHomeCameraDevice(d, cameraUidSet)) {
-      const thumb = CAMERA_PREVIEW_IMAGES[cameraIndex % CAMERA_PREVIEW_IMAGES.length];
-      const thumbKey = `${id}-${thumb}`;
-      const hideImg = Boolean(brokenThumbs[thumbKey]);
-      const busy = loadingUid === id;
-      return (
-        <HomeCameraCard
-          key={`cam-${id}`}
-          label={labelForHomeDevice(d)}
-          thumb={thumb}
-          thumbKey={thumbKey}
-          hideImg={hideImg}
-          busy={busy}
-          onThumbError={onThumbError}
-          onOpen={() => void runWithLoading(id, () => openHomeCamera(id))}
-        />
-      );
+    const isSwitch = isSmartSwitchTelemetryDevice(d);
+    const tbUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    const useNewgenSwitchPower = tbUuid && isSwitch;
+    const useSmokeSensor = tbUuid && !isSwitch && isSmokeSensorTelemetryDevice(d);
+    const useHumanSensor = tbUuid && !isSwitch && !useSmokeSensor && isHumanSensorTelemetryDevice(d);
+    const useLedStrip =
+      tbUuid && !isSwitch && !useSmokeSensor && !useHumanSensor && isLedStripTelemetryDevice(d);
+    const useGatewaySocket =
+      tbUuid &&
+      !isSwitch &&
+      !useSmokeSensor &&
+      !useHumanSensor &&
+      !useLedStrip &&
+      isGatewaySocketTelemetryDevice(d);
+
+    if (useSmokeSensor) {
+      return <SmokeSensorCard key={`smoke-${id}`} deviceId={id} title={name} />;
+    }
+    if (useHumanSensor) {
+      return <HumanSensorCard key={`human-${id}`} deviceId={id} title={name} />;
+    }
+    if (useLedStrip) {
+      return <LedStripCard key={`led-${id}`} deviceId={id} title={name} />;
     }
 
     return (
@@ -112,10 +110,24 @@ export const HomePage: React.FC = () => {
         key={id}
         deviceId={id}
         name={name}
-        meta={String(d.deviceType ?? d.device?.type ?? "Thiết bị")}
+        meta={meta}
         statusLabel="Tắt"
         icon={icon}
         defaultOn={false}
+        deviceKind={kind}
+        onRemoteSwitchChannelChange={
+          useNewgenSwitchPower
+            ? (channel, nextOn) => postDeviceSharedScopeSwitchChannel(id, channel, nextOn)
+            : undefined
+        }
+        onRemotePowerChange={
+          useGatewaySocket
+            ? async (nextOn) => {
+                await sendGatewayPlugHallwayControl(id, nextOn);
+              }
+            : undefined
+        }
+        initialRemotePowerSource={useGatewaySocket ? "gateway-plug" : undefined}
       />
     );
   };
@@ -190,68 +202,8 @@ export const HomePage: React.FC = () => {
         </button>
       </div>
 
-      {sdkBanner && (
-        <div
-          className={
-            sdkBanner.type === "ok"
-              ? "camera-page__banner camera-page__banner--ok home-page__sdk-banner"
-              : "camera-page__banner camera-page__banner--err home-page__sdk-banner"
-          }
-        >
-          {sdkBanner.text}
-        </div>
-      )}
-
       <div className="home-page__device-cards">
-        {devices.length > 0 ? (
-          (() => {
-            let camIdx = 0;
-            return devices.map((d, i) => {
-              const isCam = isHomeCameraDevice(d, cameraUidSet);
-              const idx = isCam ? camIdx++ : camIdx;
-              return renderDeviceRow(d, i, idx);
-            });
-          })()
-        ) : cameraUIDs.length > 0 ? (
-          cameraUIDs.map((uid, idx) => {
-            const id = String(uid).trim();
-            const thumb = CAMERA_PREVIEW_IMAGES[idx % CAMERA_PREVIEW_IMAGES.length];
-            const thumbKey = `${id}-${thumb}`;
-            const hideImg = Boolean(brokenThumbs[thumbKey]);
-            const busy = loadingUid === id;
-            return (
-              <HomeCameraCard
-                key={id}
-                label={labelForCameraUid(id, devices)}
-                thumb={thumb}
-                thumbKey={thumbKey}
-                hideImg={hideImg}
-                busy={busy}
-                onThumbError={onThumbError}
-                onOpen={() => void runWithLoading(id, () => openHomeCamera(id))}
-              />
-            );
-          })
-        ) : (
-          <>
-            <DeviceCard
-              deviceId="1"
-              name="Máy lọc không khí thông minh"
-              meta="Thiết bị"
-              statusLabel="Trung bình"
-              icon={<CloudOutlined />}
-              defaultOn={true}
-            />
-            <DeviceCard
-              deviceId="2"
-              name="Đèn thông minh"
-              meta="Thiết bị"
-              statusLabel="Tắt"
-              icon={<BulbOutlined />}
-              defaultOn={false}
-            />
-          </>
-        )}
+        {smartHomeDevices.map((d, i) => renderDeviceRow(d, i))}
       </div>
       <div className="home-page__edit-wrap">
         <Link to="/edit-room" className="home-page__edit-btn">

@@ -8,6 +8,8 @@ export interface HomeCameraCardProps {
   busy: boolean;
   onThumbError: (key: string) => void;
   onOpen: () => void;
+  /** Nhãn loại thiết bị (vd Camera). */
+  typeLabel?: string;
 }
 
 /** Thẻ camera trên Smart Home — thumbnail + cùng style với trang Camera. */
@@ -19,6 +21,7 @@ export const HomeCameraCard: React.FC<HomeCameraCardProps> = ({
   busy,
   onThumbError,
   onOpen,
+  typeLabel = "Camera",
 }) => (
   <article
     className={`home-page__camera-card camera-feed-card${busy ? " camera-feed-card--sdk-loading-active" : ""}`}
@@ -50,7 +53,10 @@ export const HomeCameraCard: React.FC<HomeCameraCardProps> = ({
       )}
     </div>
     <div className="camera-feed-card__bar">
-      <span className="camera-feed-card__id">{label}</span>
+      <span className="camera-feed-card__id">
+        {typeLabel ? <span className="camera-feed-card__type">{typeLabel}</span> : null}
+        {label}
+      </span>
       <span className="camera-feed-card__status">
         <span className="camera-feed-card__dot" />
         Trực tuyến

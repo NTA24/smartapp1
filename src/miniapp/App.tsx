@@ -13,6 +13,8 @@ import { DeviceTimerPage } from "./pages/DeviceTimerPage";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
 import { AddDevicePage } from "./pages/AddDevicePage";
 import { MyDevicesPage } from "./pages/MyDevicesPage";
+import { WsHumanSensorLabPage } from "./pages/WsHumanSensorLabPage";
+import { WsHallwayPlugLabPage } from "./pages/WsHallwayPlugLabPage";
 import { MiniAppLogPanel } from "./components/MiniAppLogPanel";
 
 type PlaceholderRoute = {
@@ -71,6 +73,8 @@ export default function App() {
             <Route path="/device/:deviceId/timer" element={<DeviceTimerPage />} />
             <Route path="/add-device" element={<AddDevicePage />} />
             <Route path="/my-devices" element={<MyDevicesPage />} />
+            <Route path="/dev/ws-human" element={<WsHumanSensorLabPage />} />
+            <Route path="/dev/ws-plug" element={<WsHallwayPlugLabPage />} />
             {PLACEHOLDER_ROUTES.map((route) => (
               <Route
                 key={route.path}

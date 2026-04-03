@@ -87,6 +87,20 @@ export const ProfilePage: React.FC = () => {
           <span className="profile-page__list-text">Trợ giúp và phản hồi</span>
           <span className="profile-page__list-arrow">›</span>
         </Link>
+        {import.meta.env.DEV && (
+          <>
+            <Link to="/dev/ws-human" className="profile-page__list-item profile-page__help-item">
+              <div className="profile-page__list-icon profile-page__list-icon--gray">⌗</div>
+              <span className="profile-page__list-text">Lab WS human_sensor (dev)</span>
+              <span className="profile-page__list-arrow">›</span>
+            </Link>
+            <Link to="/dev/ws-plug" className="profile-page__list-item profile-page__help-item">
+              <div className="profile-page__list-icon profile-page__list-icon--gray">⌗</div>
+              <span className="profile-page__list-text">Lab WS đèn hành lang (state-plug)</span>
+              <span className="profile-page__list-arrow">›</span>
+            </Link>
+          </>
+        )}
       </div>
     </div>
   );

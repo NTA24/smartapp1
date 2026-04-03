@@ -1,8 +1,25 @@
 import React, { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { LeftOutlined, RightOutlined, CloudOutlined, BulbOutlined } from "@ant-design/icons";
+import { LeftOutlined, RightOutlined } from "@ant-design/icons";
 import { DeviceCard } from "../components/DeviceCard";
+import { LedStripCard } from "../components/LedStripCard";
+import { SmokeSensorCard } from "../components/SmokeSensorCard";
+import { HumanSensorCard } from "../components/HumanSensorCard";
+import {
+  deviceCardIconForKind,
+  deviceCardKindMeta,
+  inferDeviceCardKind,
+} from "../lib/deviceCardKind";
 import { useMiniApp } from "../context/MiniAppContext";
+import {
+  isGatewaySocketTelemetryDevice,
+  isHumanSensorTelemetryDevice,
+  isLedStripTelemetryDevice,
+  isSmokeSensorTelemetryDevice,
+  isSmartSwitchTelemetryDevice,
+} from "../services/deviceSync";
+import { sendGatewayPlugHallwayControl } from "../services/deviceControlHttp";
+import { postDeviceSharedScopeSwitchChannel } from "../services/deviceControlHttp";
 
 export const MyDevicesPage: React.FC = () => {
   const { devices, refreshDevices, userPhone } = useMiniApp();
@@ -66,13 +83,37 @@ export const MyDevicesPage: React.FC = () => {
             </div>
           ) : (
             devices.map((d, i) => {
-              const type = String(d.deviceType ?? d.device?.type ?? "").toLowerCase();
-              const icon = type.includes("light") || type.includes("đèn") ? <BulbOutlined /> : <CloudOutlined />;
+              const rawType = String(d.deviceType ?? d.device?.type ?? "Thiết bị");
+              const kind = inferDeviceCardKind(d);
+              const icon = deviceCardIconForKind(kind);
+              const meta = deviceCardKindMeta(kind, rawType);
               const name =
                 String(d.label ?? d.device?.label ?? d.name ?? d.device?.name ?? "").trim() ||
                 `Thiết bị ${i + 1}`;
               const id = String(d.deviceId ?? d.device?.id?.id ?? `${i + 1}`);
-              const meta = String(d.deviceType ?? d.device?.type ?? "Thiết bị");
+              const tbUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+              const isSw = isSmartSwitchTelemetryDevice(d);
+              const useNewgenSwitchPower = tbUuid && isSw;
+              const useSmokeSensor = tbUuid && !isSw && isSmokeSensorTelemetryDevice(d);
+              const useHumanSensor = tbUuid && !isSw && !useSmokeSensor && isHumanSensorTelemetryDevice(d);
+              const useLedStrip =
+                tbUuid && !isSw && !useSmokeSensor && !useHumanSensor && isLedStripTelemetryDevice(d);
+              const useGatewaySocket =
+                tbUuid &&
+                !isSw &&
+                !useSmokeSensor &&
+                !useHumanSensor &&
+                !useLedStrip &&
+                isGatewaySocketTelemetryDevice(d);
+              if (useSmokeSensor) {
+                return <SmokeSensorCard key={`${id}-${i}`} deviceId={id} title={name} />;
+              }
+              if (useHumanSensor) {
+                return <HumanSensorCard key={`human-${id}-${i}`} deviceId={id} title={name} />;
+              }
+              if (useLedStrip) {
+                return <LedStripCard key={`led-${id}-${i}`} deviceId={id} title={name} />;
+              }
               return (
                 <DeviceCard
                   key={`${id}-${i}`}
@@ -82,6 +123,20 @@ export const MyDevicesPage: React.FC = () => {
                   statusLabel="Tắt"
                   icon={icon}
                   defaultOn={false}
+                  deviceKind={kind}
+                  onRemoteSwitchChannelChange={
+                    useNewgenSwitchPower
+                      ? (channel, nextOn) => postDeviceSharedScopeSwitchChannel(id, channel, nextOn)
+                      : undefined
+                  }
+                  onRemotePowerChange={
+                    useGatewaySocket
+                      ? async (nextOn) => {
+                          await sendGatewayPlugHallwayControl(id, nextOn);
+                        }
+                      : undefined
+                  }
+                  initialRemotePowerSource={useGatewaySocket ? "gateway-plug" : undefined}
                 />
               );
             })

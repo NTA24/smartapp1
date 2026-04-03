@@ -1,8 +1,6 @@
 import React, { useMemo, useState, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
 import { AppstoreOutlined } from "@ant-design/icons";
 import { useMiniApp } from "../context/MiniAppContext";
-import { addLog } from "../lib/debugLog";
 import { CAMERA_PREVIEW_IMAGES } from "../lib/cameraPreview";
 import { labelForCameraUid } from "../lib/homeCamera";
 import { useCameraSdkLoading } from "../hooks/useCameraSdkLoading";
@@ -16,7 +14,6 @@ const MOCK_CAMERA_ROWS: { uid: string; label: string; thumb: string }[] = [
 
 /** Trang Camera (`/zyapp`) — bấm thumbnail → gọi JSAPI `makeCallFromCamera` cho camera đó. */
 export const CameraPage: React.FC = () => {
-  const navigate = useNavigate();
   const { cameraToken, cameraUIDs, devices, requestAuthAndPhone, authLoading } = useMiniApp();
 
   const { loadingUid, runWithLoading } = useCameraSdkLoading();
@@ -44,33 +41,30 @@ export const CameraPage: React.FC = () => {
   const token = String(cameraToken ?? "").trim();
   const hasToken = Boolean(token);
 
-  const invokeMakeCallForUids = async (uids: string[], source: string) => {
+  const invokeMakeCallForUids = async (uids: string[], source: string, typeView: "LIVE" | "MULTIVIEW" = "LIVE") => {
     if (!hasToken) {
       setBanner({ type: "err", text: "Chưa có cameraToken. Hãy đăng nhập lại." });
       return;
     }
 
     setBanner(null);
-    addLog("[CameraPage] makeCallFromCamera", { source, uidCount: uids.length, uids });
 
     try {
-      await runMakeCallFromCameraFlow(token, uids, source);
+      await runMakeCallFromCameraFlow(token, uids, source, typeView);
       setBanner({ type: "ok", text: "Đã gọi makeCallFromCamera." });
-      addLog("[CameraPage] makeCallFromCamera OK");
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setBanner({ type: "err", text: msg });
-      addLog("[CameraPage] makeCallFromCamera lỗi", msg);
     }
   };
 
   const onThumbnailClick = (uid: string) => {
-    void runWithLoading(uid, () => invokeMakeCallForUids([uid], "camera-page-thumb"));
+    void runWithLoading(uid, () => invokeMakeCallForUids([uid], "camera-page-thumb", "LIVE"));
   };
 
   const onMultiView = () => {
-    addLog("[CameraPage] → /zyapp/multi-view");
-    navigate("/zyapp/multi-view");
+    const uids = rows.map((r) => r.uid).filter(Boolean);
+    void runWithLoading("MULTIVIEW", () => invokeMakeCallForUids(uids, "camera-page-multi-view", "MULTIVIEW"));
   };
 
   const onRefreshAuth = async (e: React.FormEvent) => {
@@ -80,7 +74,6 @@ export const CameraPage: React.FC = () => {
     try {
       await requestAuthAndPhone();
       setRefreshMsg("Đã cập nhật danh sách camera.");
-      addLog("[CameraPage] refresh auth OK");
     } catch (err) {
       setRefreshMsg(`Lỗi: ${err instanceof Error ? err.message : String(err)}`);
     }

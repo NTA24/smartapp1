@@ -1,4 +1,3 @@
-import { addLog } from "../lib/debugLog";
 import { CAMERA_FLOW_TRACE_KEY } from "../lib/storageKeys";
 import { isWindVaneReady, onWindVaneReady } from "../services/auth";
 
@@ -24,15 +23,17 @@ function getErrorMessage(err: unknown): string {
   return JSON.stringify(err ?? {});
 }
 
-export function callMakeCallFromCamera(token: string, cameraUIDs: string[] = []): Promise<unknown> {
+export type CameraTypeView = "LIVE" | "MULTIVIEW";
+
+export function callMakeCallFromCamera(
+  token: string,
+  cameraUIDs: string[] = [],
+  typeView: CameraTypeView = "LIVE",
+): Promise<unknown> {
   const normalizedUIDs = Array.isArray(cameraUIDs)
     ? cameraUIDs.map((v) => String(v).trim()).filter(Boolean)
     : [];
   return new Promise((resolve, reject) => {
-    addLog("[CHECK][JSAPI_PAYLOAD] IOTPlatFormService.makeCallFromCamera", {
-      tokenPreview: token.slice(0, 8) + "…",
-      cameraUIDCount: normalizedUIDs.length,
-    });
     const call = window.WindVane?.call;
     if (typeof call !== "function") {
       reject(new Error("WindVane.call không khả dụng (không chạy trong SuperApp/WebView?)"));
@@ -41,21 +42,18 @@ export function callMakeCallFromCamera(token: string, cameraUIDs: string[] = [])
     call(
       "IOTPlatFormService",
       "makeCallFromCamera",
-      { token, cameraUIDs: normalizedUIDs },
+      { token, cameraUIDs: normalizedUIDs, typeView },
       (res: unknown) => {
         const payload = (res && typeof res === "object" ? res : {}) as CameraJsapiResponse;
         if (payload.success !== true) {
           const msg = String(payload.message ?? "") || "makeCallFromCamera failed";
-          addLog("[CHECK][JSAPI_CALL] failed", payload);
           reject(new Error(msg));
           return;
         }
-        addLog("[CHECK][JSAPI_CALL] success", payload);
         resolve(payload);
       },
       (err: unknown) => {
         const msg = getErrorMessage(err);
-        addLog("[CHECK][JSAPI_CALL] error callback", msg);
         reject(new Error(msg || "makeCallFromCamera failed"));
       },
     );
@@ -63,7 +61,12 @@ export function callMakeCallFromCamera(token: string, cameraUIDs: string[] = [])
 }
 
 /** Chuẩn bị WindVane + gọi makeCallFromCamera + trace — dùng chung Camera / Smart Home. */
-export async function runMakeCallFromCameraFlow(token: string, cameraUIDs: string[], source: string): Promise<void> {
+export async function runMakeCallFromCameraFlow(
+  token: string,
+  cameraUIDs: string[],
+  source: string,
+  typeView: CameraTypeView = "LIVE",
+): Promise<void> {
   const t = String(token ?? "").trim();
   if (!t) throw new Error("Chưa có cameraToken. Hãy đăng nhập lại.");
 
@@ -72,22 +75,19 @@ export async function runMakeCallFromCameraFlow(token: string, cameraUIDs: strin
     jsapiCalledAt: new Date().toISOString(),
     source,
   });
-  addLog("[runMakeCallFromCameraFlow]", { source, uids: cameraUIDs });
 
   try {
     await onWindVaneReady();
     if (!isWindVaneReady()) throw new Error("WindVane chưa sẵn sàng.");
-    await callMakeCallFromCamera(t, cameraUIDs);
+    await callMakeCallFromCamera(t, cameraUIDs, typeView);
     updateCameraFlowTrace({
       jsapiStatus: "success",
       jsapiResponseAt: new Date().toISOString(),
       source,
     });
-    addLog("[runMakeCallFromCameraFlow] OK", { source });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     updateCameraFlowTrace({ jsapiStatus: "error", jsapiError: msg, source });
-    addLog("[runMakeCallFromCameraFlow] error", msg);
     throw err;
   }
 }

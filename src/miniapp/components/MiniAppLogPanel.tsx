@@ -28,16 +28,12 @@ export const MiniAppLogPanel: React.FC = () => {
     return () => window.removeEventListener("miniapp-debug-log", onLog);
   }, []);
 
-  // Ẩn log UI trong các màn hình camera (để không che/chồng giao diện host/SDK).
-  // HashRouter có thể khiến pathname không khớp tuyệt đối, nên check thêm hash.
+  // Chỉ ẩn trên màn full-screen camera / multi-view (SDK). Trang `/zyapp` vẫn hiện nút Log để xem WS.
   if (
     pathname.startsWith("/zyapp/camera/") ||
     pathname.startsWith("/zyapp/multi-view") ||
-    pathname === "/zyapp" ||
-    hash.includes("zyapp/camera/") ||
-    hash.includes("zyapp/multi-view") ||
-    hash === "#/zyapp" ||
-    hash.startsWith("#/zyapp/")
+    hash.includes("/zyapp/camera/") ||
+    hash.includes("zyapp/multi-view")
   ) {
     return null;
   }

@@ -9,8 +9,6 @@ import {
   ReloadOutlined,
   UnorderedListOutlined,
 } from "@ant-design/icons";
-import { addLog } from "../lib/debugLog";
-
 const MV_RED = "#e31837";
 
 const PREVIEW_IMAGES = [
@@ -116,34 +114,28 @@ export const MultiCameraViewPage: React.FC = () => {
     try {
       if (!document.fullscreenElement) {
         await el.requestFullscreen();
-        addLog("[MultiView] fullscreen: enter");
       } else {
         await document.exitFullscreen();
-        addLog("[MultiView] fullscreen: exit");
       }
-    } catch (err) {
-      addLog("[MultiView] fullscreen error", err);
+    } catch {
+      /* ignore */
     }
   }, []);
 
   const onSlotClick = useCallback((id: string, status: MultiViewSlotStatus) => {
     if (status === "empty") {
-      addLog("[MultiView] ô trống — thêm camera (chưa gắn)");
       return;
     }
     if (status === "active") {
-      addLog("[MultiView] click camera → /zyapp/camera/" + id);
       navigate(`/zyapp/camera/${encodeURIComponent(id)}`);
       return;
     }
     setSelectedId(id);
-    addLog("[MultiView] chọn camera", id);
   }, [navigate]);
 
   const pickLayout = (id: MultiViewLayoutId) => {
     setLayoutId(id);
     setLayoutSheetOpen(false);
-    addLog("[MultiView] bố cục", id);
   };
 
   return (
@@ -164,7 +156,6 @@ export const MultiCameraViewPage: React.FC = () => {
           className={`multi-view-page__tab${tab === "all" ? " multi-view-page__tab--active" : ""}`}
           onClick={() => {
             setTab("all");
-            addLog("[MultiView] tab Tất cả nhà");
           }}
         >
           Tất cả nhà
@@ -176,7 +167,6 @@ export const MultiCameraViewPage: React.FC = () => {
           className={`multi-view-page__tab${tab === "mine" ? " multi-view-page__tab--active" : ""}`}
           onClick={() => {
             setTab("mine");
-            addLog("[MultiView] tab Nhà của tôi");
           }}
         >
           Nhà của tôi
@@ -238,7 +228,7 @@ export const MultiCameraViewPage: React.FC = () => {
         <button
           type="button"
           className="multi-view-page__playlist"
-          onClick={() => addLog("[MultiView] Danh sách phát")}
+          onClick={() => {}}
         >
           <UnorderedListOutlined style={{ color: MV_RED }} />
           <span>Danh sách phát</span>
