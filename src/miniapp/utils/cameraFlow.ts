@@ -6,9 +6,7 @@ export function updateCameraFlowTrace(patch: Record<string, unknown>): void {
     const prevRaw = sessionStorage.getItem(CAMERA_FLOW_TRACE_KEY);
     const prev = prevRaw ? (JSON.parse(prevRaw) as Record<string, unknown>) : {};
     sessionStorage.setItem(CAMERA_FLOW_TRACE_KEY, JSON.stringify({ ...prev, ...patch }));
-  } catch {
-    // Ignore storage errors.
-  }
+  } catch {}
 }
 
 interface CameraJsapiResponse {
@@ -60,7 +58,7 @@ export function callMakeCallFromCamera(
   });
 }
 
-/** Chuẩn bị WindVane + gọi makeCallFromCamera + trace — dùng chung Camera / Smart Home. */
+
 export async function runMakeCallFromCameraFlow(
   token: string,
   cameraUIDs: string[],

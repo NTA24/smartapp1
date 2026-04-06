@@ -6,13 +6,11 @@ import { labelForCameraUid } from "../lib/homeCamera";
 import { useCameraSdkLoading } from "../hooks/useCameraSdkLoading";
 import { runMakeCallFromCameraFlow } from "../utils/cameraFlow";
 
-/** Hai camera mẫu — dùng khi API chưa trả `cameraUIDs` (xem layout / demo). */
 const MOCK_CAMERA_ROWS: { uid: string; label: string; thumb: string }[] = [
   { uid: "T3T20240045025", label: "Front Gate Camera", thumb: CAMERA_PREVIEW_IMAGES[0] },
   { uid: "T3T20240045026", label: "Front Gate Camera", thumb: CAMERA_PREVIEW_IMAGES[1] },
 ];
 
-/** Trang Camera (`/zyapp`) — bấm thumbnail → gọi JSAPI `makeCallFromCamera` cho camera đó. */
 export const CameraPage: React.FC = () => {
   const { cameraToken, cameraUIDs, devices, requestAuthAndPhone, authLoading } = useMiniApp();
 

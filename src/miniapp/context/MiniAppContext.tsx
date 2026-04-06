@@ -67,7 +67,6 @@ export function MiniAppProvider({ children }: { children: React.ReactNode }) {
 
   const didRequestRef = useRef(false);
 
-  /** Mở WS sớm khi có `VITE_NEWGEN_WS_JWT`. */
   useEffect(() => {
     tbWsManager.ensureConnected();
   }, []);
@@ -98,15 +97,12 @@ export function MiniAppProvider({ children }: { children: React.ReactNode }) {
     try {
       const devices = await getDevicesByUsername(username);
       setDevices(devices);
-    } catch {
-      /* ignore */
-    }
+    } catch {}
   }, [setDevices, state.userPhone]);
 
   const requestAuthAndPhone = useCallback(async () => {
     setState((s) => ({ ...s, authLoading: true, authError: "" }));
     try {
-      // Phone is resolved from `/oauth/user-info`, so request the scopes that endpoint relies on.
       const auth = await getAuthCode(["USER_NAME", "USER_EMAIL"]);
       const info = await getUserInfoByAuthCode(auth.authCode);
       const phone = getPhoneFromUserInfo(info);
@@ -117,9 +113,7 @@ export function MiniAppProvider({ children }: { children: React.ReactNode }) {
         setState((s) => ({ ...s, cameraToken: camToken, cameraUIDs: camUIDs }));
         try {
           sessionStorage.setItem(ZYAPP_CAMERA_TOKEN_STORAGE_KEY, JSON.stringify(info));
-        } catch {
-          /* ignore */
-        }
+        } catch {}
       }
 
       if (phone) {
@@ -127,11 +121,8 @@ export function MiniAppProvider({ children }: { children: React.ReactNode }) {
         try {
           const devices = await getDevicesByUsername(phone);
           setDevices(devices);
-        } catch {
-          /* ignore */
-        }
+        } catch {}
       }
-      // Author: đồng bộ trạng thái quyền sau khi auth xong
       const P = window.MiniAppPermissions;
       if (P?.getSetting) {
         const settings = await P.getSetting().catch(() => null);
@@ -152,7 +143,6 @@ export function MiniAppProvider({ children }: { children: React.ReactNode }) {
     await onWindVaneReady();
 
     if (!window.WindVane?.call) {
-      // Không chạy trong super app → bỏ qua auth
       setState((s) => ({ ...s, authModalVisible: false }));
       return;
     }
@@ -174,16 +164,13 @@ export function MiniAppProvider({ children }: { children: React.ReactNode }) {
     setState((s) => ({ ...s, appId: getMiniAppAppId() }));
   }, []);
 
-  // Khi mở app: đợi WindVane rồi gọi flow lấy user ngay
   useEffect(() => {
     if (typeof window === "undefined") return;
 
     void (async () => {
       try {
         await initializeMiniApp();
-      } catch {
-        /* ignore */
-      }
+      } catch {}
     })();
     return undefined;
   }, [initializeMiniApp]);

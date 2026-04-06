@@ -12,7 +12,6 @@ export type PermissionScope =
   | "vibrate"
   | "screen";
 
-/** Scope cho device (PermissionScope) hoặc user info (USER_NAME, USER_PHONE_NUMBER, ...) */
 export type AuthorizeScope = PermissionScope | "USER_NAME" | "USER_PHONE_NUMBER" | string;
 
 export interface AuthorizeResult {

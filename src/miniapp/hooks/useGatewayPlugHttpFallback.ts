@@ -2,16 +2,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useGatewayPlugStateWs } from "../lib/tbWebSocket";
 import { fetchDeviceGatewayPlugState } from "../services/deviceSync";
 
-/**
- * Đèn hành lang: ưu tiên WS `state-plug`; **GET ngay khi mở app** (và khi tab lại) nếu WS chưa có — giống hydrate smart switch.
- */
 export function useGatewayPlugStateWithFallback(deviceId: string | null): {
   live: boolean | undefined;
   refreshFromHttp: () => Promise<void>;
 } {
   const { on: wsState, wsRev } = useGatewayPlugStateWs(deviceId);
   const [httpState, setHttpState] = useState<boolean | undefined>(undefined);
-  /** Snapshot GET sau POST / khi tab visible — ghi đè tới khi có push WS mới (wsRev đổi). */
+  
   const [manualHttp, setManualHttp] = useState<boolean | undefined>(undefined);
   const wsSeen = useRef(false);
   const lastWsRev = useRef(0);

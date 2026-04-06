@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { SDK_LOADING_UI_RELEASE_MS } from "../lib/cameraPreview";
 
-/** Loading + timeout + visibility/focus — dùng chung Camera / Smart Home khi gọi makeCallFromCamera. */
 export function useCameraSdkLoading() {
   const [loadingUid, setLoadingUid] = useState<string | null>(null);
 

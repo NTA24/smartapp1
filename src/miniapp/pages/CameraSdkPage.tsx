@@ -123,13 +123,10 @@ export const CameraSdkPage: React.FC = () => {
   }, [cameraId]);
 
   useEffect(() => {
-    // Persist saved poses.
     if (!cameraId) return;
     try {
       sessionStorage.setItem(storageKeyFor(cameraId), JSON.stringify(savedPoses));
-    } catch {
-      // ignore
-    }
+    } catch {}
   }, [cameraId, savedPoses]);
 
   useEffect(() => {

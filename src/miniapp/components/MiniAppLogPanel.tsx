@@ -3,15 +3,12 @@ import { useLocation } from "react-router-dom";
 import { clearLogs, getLogs } from "../lib/debugLog";
 import { isMiniAppLogUiEnabled } from "../lib/enableDevtools";
 
-/**
- * Panel log từ addLog() — bật bằng VITE_ENABLE_MINIAPP_LOG_UI / ?logui=1 / DEV.
- */
+
 export const MiniAppLogPanel: React.FC = () => {
   const location = useLocation();
   const pathname = location.pathname || "";
   const hash = typeof window !== "undefined" ? String(window.location.hash ?? "") : "";
 
-  // Mặc định ẩn để không che UI Camera, bật khi cần debug.
   const [open, setOpen] = useState(false);
   const [lines, setLines] = useState<string[]>(() => getLogs());
 
@@ -28,7 +25,6 @@ export const MiniAppLogPanel: React.FC = () => {
     return () => window.removeEventListener("miniapp-debug-log", onLog);
   }, []);
 
-  // Chỉ ẩn trên màn full-screen camera / multi-view (SDK). Trang `/zyapp` vẫn hiện nút Log để xem WS.
   if (
     pathname.startsWith("/zyapp/camera/") ||
     pathname.startsWith("/zyapp/multi-view") ||

@@ -25,7 +25,6 @@ export interface MultiViewGridSlot {
   thumbnail?: string | null;
 }
 
-/** Pool tối đa 9 ô — slice theo bố cục đang chọn. */
 export const MOCK_MULTI_VIEW_GRID: MultiViewGridSlot[] = [
   { id: "JS202500000323", status: "connecting", progress: 99 },
   { id: "T3T20240045025", status: "active", thumbnail: PREVIEW_IMAGES[0] },
@@ -58,7 +57,6 @@ function layoutLayoutById(id: MultiViewLayoutId) {
   return MULTI_VIEW_LAYOUTS.find((l) => l.id === id)!;
 }
 
-/** Icon mini-grid theo bố cục */
 function LayoutPickerIcon({ layoutId }: { layoutId: MultiViewLayoutId }) {
   const { cols, rows, count } = layoutLayoutById(layoutId);
   return (
@@ -117,9 +115,7 @@ export const MultiCameraViewPage: React.FC = () => {
       } else {
         await document.exitFullscreen();
       }
-    } catch {
-      /* ignore */
-    }
+    } catch {}
   }, []);
 
   const onSlotClick = useCallback((id: string, status: MultiViewSlotStatus) => {

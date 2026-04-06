@@ -23,10 +23,6 @@ function combinedText(d: SmartBuildingDeviceRecord): string {
     .join(" ");
 }
 
-/**
- * Phân loại thẻ thiết bị (không gồm camera — camera dùng HomeCameraCard).
- * Thứ tự: công tắc đa kênh (state-sw*) → cảm biến → đèn → gateway / nút on-off hành lang → khác.
- */
 export function inferDeviceCardKind(d: SmartBuildingDeviceRecord): DeviceCardKind {
   if (isSmartSwitchTelemetryDevice(d)) return "switch";
 

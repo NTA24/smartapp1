@@ -1,4 +1,4 @@
-/** Dùng chung trang lab WebSocket (human_sensor, state-plug, …). */
+
 
 export function mergeWsDataLayers(msg: Record<string, unknown>): Record<string, unknown> {
   const acc: Record<string, unknown> = {};
@@ -23,7 +23,7 @@ export function mergeWsDataLayers(msg: Record<string, unknown>): Record<string, 
     if ("data" in o) push(o.data);
   }
 
-  /** TB `latestValues`: key → timestamp — không merge (ghi đè sai giá trị thật trong `data`). */
+  
   return acc;
 }
 

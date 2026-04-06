@@ -1,16 +1,3 @@
-/**
- * NewGen WebSocket — đọc trạng thái (subscribe telemetry/attributes). Base URL `…/api/ws` (xem getNewgenWsTelemetryUrl).
- *
- * **Ổ cắm / đèn hành lang:** đọc qua WS `state-plug`; bật/tắt: HTTP `sendGatewayPlugHallwayControl` (mặc định SHARED_SCOPE `cmd-socket`).
- * Công tắc 4 kênh: subscribe hai lệnh ATTRIBUTES giống demo HTML + `processAttrs` trên mọi `onmessage`.
- *
- * Message: { subscriptionId, errorCode, data: { key: [[ts, value], ...] }, latestValues } — `latestValues` chỉ là ts/key, không merge vào giá trị attribute.
- * NewGen: lần đầu mở socket gửi **một** bản `{ authCmd, cmds }` (giống demo HTML); chỉ mở `wss://` không gửi `cmds` thì server không bơm dữ liệu.
- * LED strip: đọc `state-light`, `color-temp-light`; điều khiển HTTP SHARED `cmd-light`, `cmd-color-temp-light`.
- * smoke_sensor / human_sensor: `cleared` = bình thường, `detected` = cảnh báo (đỏ).
- * Auth: giống demo HTML — `login()` → JWT mới → `?token=` + `authCmd`.
- * Ưu tiên: JWT cứng chưa hết hạn → JWT cache (login trước đó) → auto-login → API key fallback.
- */
 import { useEffect, useRef, useState } from "react";
 import {
   getNewgenApiBase,
@@ -25,7 +12,6 @@ import { addLog } from "./debugLog";
 import { fetchDeviceSwitchChannelStates } from "../services/deviceSync";
 import { layersForProcessAttrs, mergeLayersIntoFlatAttrMap } from "./tbWsProcessAttrs";
 
-/* ── Tracked keys — giống demo HTML switchKeys / commandKeys / trackedAttributeKeys ── */
 const SWITCH_KEYS = ["state-sw1", "state-sw2", "state-sw3", "state-sw4"] as const;
 const COMMAND_KEYS = ["cmd-sw1", "cmd-sw2", "cmd-sw3", "cmd-sw4"] as const;
 const TRACKED_ATTR_KEYS = new Set<string>([...SWITCH_KEYS, ...COMMAND_KEYS]);
@@ -35,18 +21,11 @@ const SWITCH_KEY_TO_IDX: Record<string, 0 | 1 | 2 | 3> = {
   "cmd-sw1": 0, "cmd-sw2": 1, "cmd-sw3": 2, "cmd-sw4": 3,
 };
 
-/**
- * Giống demo `parseSwitchBool`: chuẩn hoá on/off.
- */
 function parseSwitchBool(value: unknown): boolean {
   const n = String(value ?? "").trim().toLowerCase();
   return ["1", "true", "t", "on", "yes"].includes(n);
 }
 
-/**
- * Giống demo `processAttrs(attrs)`:
- *   duyệt key → lọc trackedAttributeKeys → unwrap [[ts,val]] / {value} → gọi sink(key, value).
- */
 function processAttrs(
   attrs: unknown,
   sink: (key: string, value: unknown) => void,
@@ -68,16 +47,12 @@ function processAttrs(
   }
 }
 
-/** Listener nhận (key, parsedBool) sau mỗi WS message chứa switch data. */
 type SmartSwitchWsListener = (key: string, on: boolean) => void;
 
 const SMOKE_TS_KEY = "smoke_sensor";
-/** Alias TB — log/push có thể dùng key này; subscribe thẻ chỉ dùng `smoke_sensor`. */
 const SMOKE_TS_KEY_ALT = "smokeDetected";
 const HUMAN_TS_KEY = "human_sensor";
-/** Alias TB — giống `smokeDetected` cho khói. */
 const HUMAN_TS_KEY_ALT = "humanDetected";
-/** Attribute ổ cắm / đèn hành lang — chỉ subscribe đọc (CLIENT_SCOPE); điều khiển qua HTTP. */
 const GATEWAY_PLUG_ATTR_KEY = "state-plug";
 
 function unwrapTelemetryScalar(raw: unknown): unknown {
@@ -118,9 +93,7 @@ function mapPresenceWsPayloadToAlarmState(raw: unknown): boolean | undefined {
       const j = JSON.stringify(cur).toLowerCase();
       if (/\bdetected\b/.test(j) && !/not\s+detected|undetected/.test(j)) return true;
       if (j.includes("cleared") || j.includes('"clear"')) return false;
-    } catch {
-      /* ignore */
-    }
+    } catch {}
     cur = unwrapTelemetryScalar(cur);
   }
 
@@ -149,9 +122,7 @@ function mapPresenceWsPayloadToAlarmState(raw: unknown): boolean | undefined {
     if (dump.includes('"detected"') && !dump.includes("not detected") && !dump.includes("undetected")) {
       return true;
     }
-  } catch {
-    /* ignore */
-  }
+  } catch {}
 
   return undefined;
 }
@@ -165,7 +136,6 @@ function humanSensorValPreview(raw: unknown): string {
   }
 }
 
-/** Luôn ghi 1 dòng mỗi khi có bản tin human (panel + console). */
 function logHumanSensorWsLine(deviceId: string, raw: unknown): void {
   const id = deviceId.trim() || "?";
   const alarm = mapPresenceWsPayloadToAlarmState(raw);
@@ -180,7 +150,6 @@ function logHumanSensorWsLine(deviceId: string, raw: unknown): void {
   addLog("[human_sensor]", id, "unparsed", humanSensorValPreview(raw));
 }
 
-/** WS đẩy attribute `state-plug` — chỉ đọc hiển thị realtime. */
 function logGatewayPlugWsLine(deviceId: string, raw: unknown): void {
   const id = deviceId.trim() || "?";
   if (raw === undefined || raw === null) {
@@ -213,16 +182,8 @@ interface Sub {
   cmdId: number;
   deviceId: string;
   key: string;
-  /**
-   * Nếu có — gửi **một** lệnh ATTRIBUTES `keys: "k1,k2,…"` như demo HTML ThingsBoard (smart switch).
-   */
   batchKeys?: readonly string[];
   batchAttrCb?: BatchAttrCb;
-  /**
-   * `client_attr` = CLIENT_SCOPE (demo TB: `state-sw*`, `state-plug`).
-   * `shared_attr` = SHARED_SCOPE (demo: `cmd-sw*` sau POST điều khiển).
-   * `attr` = SERVER_SCOPE; `ts` = timeseries hoặc ATTRIBUTES scope null (NewGen).
-   */
   subType: "ts" | "attr" | "client_attr" | "shared_attr";
   cb: ValueCb;
 }
@@ -231,15 +192,12 @@ interface TbWsMsg {
   subscriptionId?: number;
   errorCode?: number;
   errorMsg?: string | null;
-  data?: Record<string, unknown>; // Cập nhật kiểu cho linh hoạt
-  /** Map key → ts mới nhất (đôi khi kèm bản tin có `data`). */
+  data?: Record<string, unknown>;
   latestValues?: Record<string, unknown>;
-  /** Một số bản TB kèm entity khi có nhiều thiết bị cùng key. */
   entityId?: string | { id?: string; entityType?: string };
   [key: string]: unknown;
 }
 
-/** TB đôi khi trả attributes dạng `[{ key, value }, …]` thay vì object phẳng. */
 function mergeFlatIntoAcc(acc: Record<string, unknown>, o: unknown): void {
   if (o === undefined || o === null) return;
   if (Array.isArray(o)) {
@@ -281,7 +239,6 @@ function flattenAttributeData(data: unknown): Record<string, unknown> {
 
 const SMART_SWITCH_LIKE_KEY_RE = /^state-sw[1-4]$|^cmd-sw[1-4]$/;
 
-/** Quét cây JSON — một số bản TB lồng `state-sw*` sâu, không nằm phẳng trong `data`. */
 function collectSmartSwitchLikeKeysDeep(node: unknown, acc: Record<string, unknown>): void {
   if (node === undefined || node === null || typeof node !== "object") return;
   if (Array.isArray(node)) {
@@ -296,14 +253,9 @@ function collectSmartSwitchLikeKeysDeep(node: unknown, acc: Record<string, unkno
   }
 }
 
-/**
- * Gộp payload phẳng cho vòng xử lý mặc định.
- * **`attrSubCmds` dạng mảng** không gộp vào đây — onmessage xử lý từng phần tử với **đúng `cmdId`** (ThingsBoard chuẩn).
- */
 function mergeTbWsPayloadData(msg: TbWsMsg): Record<string, unknown> | null {
   const acc: Record<string, unknown> = {};
 
-  /** `data` / `data.data` — không dùng `latestValues` (chỉ timestamp, sẽ ghi đè sai giá trị). */
   mergeLayersIntoFlatAttrMap(layersForProcessAttrs(msg as Record<string, unknown>), acc);
 
   mergeFlatIntoAcc(acc, msg.data);
@@ -320,8 +272,6 @@ function mergeTbWsPayloadData(msg: TbWsMsg): Record<string, unknown> | null {
   const msgAny = msg as Record<string, unknown>;
   mergeFlatIntoAcc(acc, msgAny.update);
   mergeFlatIntoAcc(acc, msgAny.result);
-
-  /** `cmds[]` xử lý trong `onmessage` với đúng `cmdId` từng lệnh (NewGen) — không gộp phẳng ở đây. */
 
   const msgSansAttrArray = { ...(msg as Record<string, unknown>) };
   delete msgSansAttrArray.attrSubCmds;
@@ -343,7 +293,6 @@ function tryReadEntityIdValue(x: unknown): string | undefined {
 function readMsgEntityId(msg: TbWsMsg): string | undefined {
   const fromRoot = tryReadEntityIdValue(msg.entityId);
   if (fromRoot) return fromRoot;
-  /** Không đọc `entityId` trong `msg.data` — payload attribute có thể có key trùng / giá trị lạ. */
   const anyMsg = msg as Record<string, unknown>;
   const alt = tryReadEntityIdValue(anyMsg.deviceId) ?? tryReadEntityIdValue(anyMsg.originator);
   if (alt) return alt;
@@ -361,10 +310,6 @@ function entityIdsMatch(deviceId: string, msgEntityId: string | undefined): bool
   return a.length > 0 && a === b;
 }
 
-/**
- * Giống demo HTML `processAttrs` cho từng `v`:
- * `[[ts, val], …]` → lấy `v[0][1]`; object → `.value`.
- */
 function extractTbWsAttributeValueLikeDemo(raw: unknown): unknown {
   let value: unknown = raw;
 
@@ -393,7 +338,6 @@ function extractTbWsAttributeValueLikeDemo(raw: unknown): unknown {
   return value;
 }
 
-/** TB đôi khi gửi `ts` dạng chuỗi số trong JSON — phải coerce kẻo `normalizeTelemetryPoints` trả null → không dispatch. */
 function coerceTelemetryTs(ts: unknown): number {
   if (typeof ts === "number" && Number.isFinite(ts)) return ts;
   if (typeof ts === "string") {
@@ -403,11 +347,9 @@ function coerceTelemetryTs(ts: unknown): number {
   return 0;
 }
 
-/** TB có thể trả `[[ts, v], ...]`, `[ts, v]`, hoặc mảng object `[{ts: 123, value: v}]`. */
 function normalizeTelemetryPoints(raw: unknown): [number, unknown][] | null {
   if (raw === undefined || raw === null) return null;
 
-  // Xử lý trường hợp TB trả về mảng các object (VD: attributes hoặc TS format mới)
   if (Array.isArray(raw) && raw.length > 0 && typeof raw[0] === "object" && raw[0] !== null && "value" in raw[0]) {
     return raw.map((item) => {
       const row = item as { ts?: number; value?: unknown };
@@ -417,12 +359,10 @@ function normalizeTelemetryPoints(raw: unknown): [number, unknown][] | null {
 
   if (!Array.isArray(raw) || raw.length === 0) return null;
 
-  // Mảng 1 chiều [ts, value] — ts có thể là number hoặc string
   if (raw.length === 2 && (typeof raw[0] === "number" || typeof raw[0] === "string")) {
     return [[coerceTelemetryTs(raw[0]), raw[1]]];
   }
 
-  // Mảng 2 chiều [[ts, value], ...] — ts từng dòng có thể là string
   const first = raw[0];
   if (Array.isArray(first) && first.length >= 2) {
     return (raw as unknown[][]).map((row) => {
@@ -446,10 +386,6 @@ function isJwtExpired(jwt: string): boolean {
   }
 }
 
-/**
- * Giống demo HTML `login()`: POST `/api/auth/login` → lấy JWT mới.
- * Cache lại JWT + refreshToken trong memory.
- */
 let _cachedLoginJwt = "";
 let _loginInFlight: Promise<string | null> | null = null;
 
@@ -492,7 +428,6 @@ function getCachedLoginJwt(): string {
 }
 
 class TbWsManager {
-  /** Gửi `v` tới đúng subscription(s) cho `key` — hỗ trợ nhiều thiết bị (entityId / subscriptionId) và trùng sub (StrictMode). */
   private dispatchTelemetryValue(
     key: string,
     v: unknown,
@@ -514,10 +449,6 @@ class TbWsManager {
       return;
     }
 
-    /**
-     * Cùng thiết bị, nhiều lệnh WS cho `state-sw*` / `cmd-sw*` (CLIENT + SERVER + TS…): `subscriptionId` trong bản tin
-     * chỉ khớp **một** `cmdId` — báo **tất cả** subscriber cùng `deviceId` để chắc `onState`/`onCmd` chạy (tránh lệch sid).
-     */
     if (SMART_SWITCH_LIKE_KEY_RE.test(key)) {
       const d0 = matches[0].deviceId;
       if (matches.every((s) => s.deviceId === d0)) {
@@ -526,10 +457,6 @@ class TbWsManager {
       }
     }
 
-    /**
-     * Giống `TelemetryWebsocketService.processOnMessage` (TB UI): ưu tiên **cmdId / subscriptionId**,
-     * không `find` theo entity trước — tránh chỉ báo 1 subscription khi có nhiều lệnh cùng key (CLIENT + TIMESERIES).
-     */
     if (!Number.isNaN(sidNum)) {
       const bySid = matches.filter((s) => s.cmdId === sidNum);
       if (bySid.length > 0) {
@@ -557,7 +484,6 @@ class TbWsManager {
     notify(matches[0]);
   }
 
-  /** Một key attribute từ WS (đã là giá trị hoặc chuỗi TB telemetry) → unwrap → dispatch. */
   private dispatchWsAttrKey(
     k: string,
     rawPts: unknown,
@@ -639,16 +565,9 @@ class TbWsManager {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private reconnectDelay = RECONNECT_BASE_MS;
   private connecting = false;
-  /** Server đóng WS với JWT không hợp lệ / hết hạn — không reconnect vô hạn với cùng token. */
   private wsAuthFatal = false;
-  /** Đổi JWT / ApiKey trong .env → cho phép thử WS lại (không kẹt wsAuthFatal). */
   private lastWsTokenFingerprint = "";
 
-  /**
-   * Smart Switch listeners — giống demo HTML `ws.onmessage → processAttrs → updateAttributeState`.
-   * Mỗi WS message: chạy `processAttrs(msg.data)` + `processAttrs(msg.data?.data)` + `processAttrs(msg.attrSubCmds?.data)`
-   * → gọi listener với (key, parsedBool).
-   */
   private smartSwitchListeners = new Set<SmartSwitchWsListener>();
 
   subscribeSmartSwitch(cb: SmartSwitchWsListener): () => void {
@@ -661,7 +580,7 @@ class TbWsManager {
     const sink = (key: string, value: unknown) => {
       const on = parseSwitchBool(value);
       for (const cb of this.smartSwitchListeners) {
-        try { cb(key, on); } catch { /* ignore */ }
+        try { cb(key, on); } catch {}
       }
     };
     processAttrs(msg.data, sink);
@@ -674,10 +593,6 @@ class TbWsManager {
     }
   }
 
-  /**
-   * Giống demo `runDemo()`: login → connectWs → subscribeLatestAttributes.
-   * Ưu tiên: (1) JWT cứng chưa hết hạn, (2) JWT login cache, (3) auto-login, (4) API key fallback.
-   */
   ensureConnected(): void {
     if (this.wsAuthFatal) return;
     if (this.connecting) return;
@@ -840,9 +755,7 @@ class TbWsManager {
             this.dispatchWsAttrKey(k, dataObj![k], sidNum, msgEntity);
           }
         }
-      } catch {
-        /* ignore */
-      }
+      } catch {}
     };
 
     ws.onclose = (ev) => {
@@ -869,12 +782,10 @@ class TbWsManager {
     };
   }
 
-  /** Một lệnh trong `cmds` (format NewGen / demo HTML). */
   private buildNewgenCmd(sub: Sub) {
     const keysWire =
       sub.batchKeys && sub.batchKeys.length > 0 ? sub.batchKeys.join(",") : sub.key;
 
-    /** Giống `tsSubCmds` (LATEST_TELEMETRY) — `ATTRIBUTES`+`scope:null` không phải lúc nào cũng nhận push TS. */
     if (sub.subType === "ts") {
       return {
         type: "TIMESERIES" as const,
@@ -912,7 +823,6 @@ class TbWsManager {
       return;
     }
 
-    // ThingsBoard UI cũ: `tsSubCmds` / `attrSubCmds`
     const keysWire =
       sub.batchKeys && sub.batchKeys.length > 0 ? sub.batchKeys.join(",") : sub.key;
 
@@ -960,7 +870,6 @@ class TbWsManager {
     subType: "ts" | "attr" | "client_attr" | "shared_attr",
     cb: ValueCb,
   ): () => void {
-    // Tránh 2 subscription cùng (deviceId, key) — React StrictMode mount đôi → chỉ giữ bản mới nhất
     for (const [existingId, existing] of [...this.subs.entries()]) {
       if (existing.deviceId === deviceId && existing.key === key && existing.subType === subType) {
         this.subs.delete(existingId);
@@ -987,9 +896,6 @@ class TbWsManager {
     };
   }
 
-  /**
-   * Smart switch / batch: CLIENT, SHARED, **SERVER** (`attr`), hoặc **TIMESERIES** (`ts`).
-   */
   subscribeBatch(
     deviceId: string,
     batchKeys: readonly string[],
@@ -1037,12 +943,10 @@ class TbWsManager {
   }
 }
 
-/** Singleton — dùng chung một WS connection cho toàn app. */
 export const tbWsManager = new TbWsManager();
 
 interface WsValueState {
   value: unknown;
-  /** Tăng mỗi lần server push — đảm bảo re-render kể cả khi giá trị chuỗi trùng (detected liên tục). */
   rev: number;
 }
 
@@ -1069,11 +973,6 @@ function useTbWs(
   return { value: state.value, rev: state.rev };
 }
 
-/**
- * Gộp `smoke_sensor`/`human_sensor` (primary) + alias (`smokeDetected`/`humanDetected`).
- * Phải **OR** cảnh báo: nếu `primary === false` (cleared) nhưng `alias === true` (detected) — vẫn báo động.
- * Trước đây `if (primary !== undefined) return primary` khiến luôn Normal trong trường hợp đó.
- */
 function pickPresenceAlarm(primary: boolean | undefined, alias: boolean | undefined): boolean | undefined {
   if (primary === true || alias === true) return true;
   if (primary === false && alias === false) return false;
@@ -1081,10 +980,6 @@ function pickPresenceAlarm(primary: boolean | undefined, alias: boolean | undefi
   return alias;
 }
 
-/**
- * WS cảm biến khói — subscribe **`smoke_sensor`** + **`smokeDetected`** (push có thể chỉ dùng một key).
- * `alarm`: `cleared` → Normal, `detected` → báo đỏ. `wsRev` tăng khi có bản tin WS.
- */
 export function useSmokeDetectedWs(deviceId: string | null): {
   alarm: boolean | undefined;
   wsRev: number;
@@ -1099,16 +994,6 @@ export function useSmokeDetectedWs(deviceId: string | null): {
   };
 }
 
-/**
- * Smart Switch — giống 1:1 `index-ws-tb-full-command-jwt-org.html`:
- *
- * 1. `subscribeBatch` → WS cmds: CLIENT_SCOPE state-sw*, SHARED_SCOPE cmd-sw*
- *    (giống demo `subscribeLatestAttributes`)
- * 2. `subscribeSmartSwitch` → mỗi WS message chạy `processAttrs(msg.data)`
- *    + `processAttrs(msg.data.data)` + `processAttrs(msg.attrSubCmds.data)`
- *    → `updateAttributeState(key, value)` → React state
- * 3. HTTP bootstrap fallback
- */
 type SwitchTuple = [
   boolean | undefined,
   boolean | undefined,
@@ -1139,7 +1024,6 @@ export function useSmartSwitchStatesWs(deviceId: string | null): {
     setChs(emptySwitchTuple());
     setWsRev(0);
 
-    /* ── (1) Subscribe WS — giống demo subscribeLatestAttributes ── */
     const noop: BatchAttrCb = () => {};
     const unsubState = tbWsManager.subscribeBatch(
       deviceId,
@@ -1154,7 +1038,6 @@ export function useSmartSwitchStatesWs(deviceId: string | null): {
       noop,
     );
 
-    /* ── (2) processAttrs → updateAttributeState (giống demo) ── */
     const unsubSwitch = tbWsManager.subscribeSmartSwitch((key, on) => {
       const idx = SWITCH_KEY_TO_IDX[key];
       if (idx === undefined) return;
@@ -1167,7 +1050,6 @@ export function useSmartSwitchStatesWs(deviceId: string | null): {
       setWsRev((r) => r + 1);
     });
 
-    /* ── (3) HTTP bootstrap — fallback nếu WS chưa push ── */
     let cancelled = false;
     const bootstrapTid = window.setTimeout(() => {
       void fetchDeviceSwitchChannelStates(deviceId.trim()).then((tuple) => {
@@ -1192,9 +1074,6 @@ export function useSmartSwitchStatesWs(deviceId: string | null): {
   return { sw1: chs[0], sw2: chs[1], sw3: chs[2], sw4: chs[3], wsRev };
 }
 
-/**
- * WS cảm biến người — subscribe **`human_sensor`** + **`humanDetected`** (TB đôi khi chỉ đẩy một key).
- */
 export function useHumanDetectedWs(deviceId: string | null): {
   alarm: boolean | undefined;
   wsRev: number;
@@ -1209,14 +1088,8 @@ export function useHumanDetectedWs(deviceId: string | null): {
   };
 }
 
-/**
- * WS subscription: `state-plug` (đèn hành lang / gateway plug) — **chỉ đọc** trạng thái.
- * Giống demo HTML TB: `{ type:"ATTRIBUTES", scope:"CLIENT_SCOPE", keys:"state-plug" }` (`subType:"client_attr"`).
- * Push: `data: { "state-plug": [[ts,"on"|"off"]] }` hoặc lồng trong `data` / `attrSubCmds.data` — xem `mergeTbWsPayloadData`.
- */
 export function useGatewayPlugStateWs(deviceId: string | null): {
   on: boolean | undefined;
-  /** Mỗi lần server push — dùng để bỏ snapshot HTTP sau điều khiển. */
   wsRev: number;
 } {
   const { value: raw, rev } = useTbWs(deviceId, GATEWAY_PLUG_ATTR_KEY, "client_attr");
@@ -1244,10 +1117,6 @@ function parseLedColorTemp(v: unknown): number | undefined {
   return Math.max(0, Math.min(100, Math.round(n)));
 }
 
-/**
- * LED strip — subscribe `state-light` (on/off) + `color-temp-light` (0…100).
- * NewGen `cmds`: `TIMESERIES` + `LATEST_TELEMETRY` khi `subType: "ts"` (xem `buildNewgenCmd`).
- */
 export function useLedStripStatesWs(deviceId: string | null): {
   lightOn: boolean | undefined;
   colorTemp: number | undefined;

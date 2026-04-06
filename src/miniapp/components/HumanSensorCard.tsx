@@ -1,4 +1,4 @@
-/** Render theo WS trước; HTTP chỉ khi chưa có bản tin WS. */
+
 import React from "react";
 import { useSensorTelemetryHttpFallback } from "../hooks/useSensorTelemetryHttpFallback";
 import { useHumanDetectedWs } from "../lib/tbWebSocket";

@@ -81,9 +81,7 @@ export async function getUserInfoByAuthCode(authCode: string): Promise<UserInfoR
   let data: unknown = null;
   try {
     data = await res.json();
-  } catch (_) {
-    // ignore
-  }
+  } catch {}
 
   if (!res.ok) {
     const msg = pickErrorMessage(data) || `HTTP ${res.status}`;

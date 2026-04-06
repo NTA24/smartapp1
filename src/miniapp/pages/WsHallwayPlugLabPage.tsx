@@ -16,10 +16,6 @@ function parsePlugOn(raw: unknown): string {
   return String(raw);
 }
 
-/**
- * Lab: đèn hành lang / ổ cắm — subscribe `state-plug` (CLIENT_SCOPE như demo HTML & app).
- * Mẫu bản tin: `data: { "state-plug": [[ts,"on"|"off"]] }`.
- */
 export const WsHallwayPlugLabPage: React.FC = () => {
   const [token, setToken] = useState(() => getNewgenWsJwt());
   const [deviceId, setDeviceId] = useState(DEFAULT_PLUG_DEVICE_ID);
@@ -41,9 +37,7 @@ export const WsHallwayPlugLabPage: React.FC = () => {
     if (s && s.readyState === WebSocket.OPEN) {
       try {
         s.send(JSON.stringify({ cmds: [{ cmdId: 1, unsubscribe: true }] }));
-      } catch {
-        /* ignore */
-      }
+      } catch {}
       s.close();
     }
     setConnected(false);

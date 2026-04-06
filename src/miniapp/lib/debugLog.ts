@@ -1,8 +1,3 @@
-/**
- * Log hiển thị trên UI (WebView không có F12).
- * Gọi addLog() → panel DebugLogPanel sẽ hiển thị.
- */
-
 const MAX_LINES = 80;
 const STORAGE_KEY = "miniapp_debug_lines";
 
@@ -25,17 +20,13 @@ class MiniAppDebugLogStore {
       if (!raw) return;
       const arr = JSON.parse(raw);
       if (Array.isArray(arr)) this.lines = arr.slice(-MAX_LINES).map((x) => String(x));
-    } catch {
-      // ignore
-    }
+    } catch {}
   }
 
   private persist(): void {
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(this.lines.slice(-MAX_LINES)));
-    } catch {
-      // ignore
-    }
+    } catch {}
   }
 
   add(...args: unknown[]): void {
@@ -47,9 +38,7 @@ class MiniAppDebugLogStore {
     this.persist();
     try {
       window.dispatchEvent(new CustomEvent("miniapp-debug-log", { detail: [...this.lines] }));
-    } catch {
-      // ignore
-    }
+    } catch {}
     console.log("[MiniApp]", ...args);
   }
 
@@ -63,14 +52,10 @@ class MiniAppDebugLogStore {
     this.hydrated = true;
     try {
       window.localStorage.removeItem(STORAGE_KEY);
-    } catch {
-      // ignore
-    }
+    } catch {}
     try {
       window.dispatchEvent(new CustomEvent("miniapp-debug-log", { detail: [] }));
-    } catch {
-      // ignore
-    }
+    } catch {}
   }
 }
 

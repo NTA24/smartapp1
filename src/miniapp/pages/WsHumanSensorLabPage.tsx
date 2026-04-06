@@ -5,10 +5,6 @@ import { latestScalar, mergeWsDataLayers } from "../lib/wsLabShared";
 
 type ScopeMode = "client" | "newgen";
 
-/**
- * Trang thử: token + deviceId — gửi đúng payload demo HTML (`authCmd` + `cmds` subscribe `human_sensor`),
- * xem `onmessage` có nhảy (đếm bản tin) hay không. Chỉ dùng khi debug (link từ Profile khi dev).
- */
 export const WsHumanSensorLabPage: React.FC = () => {
   const [token, setToken] = useState(() => getNewgenWsJwt());
   const [deviceId, setDeviceId] = useState("");
@@ -30,9 +26,7 @@ export const WsHumanSensorLabPage: React.FC = () => {
     if (s && s.readyState === WebSocket.OPEN) {
       try {
         s.send(JSON.stringify({ cmds: [{ cmdId: 1, unsubscribe: true }] }));
-      } catch {
-        /* ignore */
-      }
+      } catch {}
       s.close();
     }
     setConnected(false);

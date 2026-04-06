@@ -4,27 +4,21 @@ import { useNavigate } from "react-router-dom";
 export interface SensorAlarmCardProps {
   deviceId: string;
   title: string;
-  /**
-   * Giá trị hiển thị (smoke/human): **WebSocket trước**; HTTP chỉ dự phòng khi WS chưa có.
-   * - `undefined` — chưa có WS (và có thể chưa hết thời gian chờ HTTP) → “Đang chờ WebSocket…”
-   */
+  
   wsState: boolean | undefined;
-  /** Tăng mỗi lần WS push (để gắn `data-*` / debug). */
+  
   wsRev?: number;
-  /** Icon hiển thị khi trạng thái bình thường (green banner). */
+  
   NormalIcon: React.FC;
-  /** Icon hiển thị khi có cảnh báo (red banner). */
+  
   AlarmIcon: React.FC;
-  /** Nhãn trạng thái cảnh báo (ví dụ "Fire alarm", "Detected"). */
+  
   alarmLabel?: string;
-  /** Nhãn trạng thái bình thường (mặc định "Normal"). */
+  
   normalLabel?: string;
-  /** aria-label prefix (ví dụ "Cảm biến khói", "Cảm biến người"). */
+  
   ariaPrefix?: string;
-  /**
-   * `alarm` (mặc định): `true` = banner đỏ cảnh báo (khói, báo động).
-   * `presence`: hiển thị hiện diện — `true`/`false` đều banner xanh, khác icon/nhãn (PIR / có người).
-   */
+  
   variant?: "alarm" | "presence";
 }
 

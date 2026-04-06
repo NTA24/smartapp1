@@ -8,11 +8,10 @@ export interface HomeCameraCardProps {
   busy: boolean;
   onThumbError: (key: string) => void;
   onOpen: () => void;
-  /** Nhãn loại thiết bị (vd Camera). */
+  
   typeLabel?: string;
 }
 
-/** Thẻ camera trên Smart Home — thumbnail + cùng style với trang Camera. */
 export const HomeCameraCard: React.FC<HomeCameraCardProps> = ({
   label,
   thumb,

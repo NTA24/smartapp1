@@ -17,7 +17,7 @@ export const LedStripCard: React.FC<LedStripCardProps> = ({ deviceId, title }) =
   const [sliderBusy, setSliderBusy] = useState(false);
   const [localTemp, setLocalTemp] = useState<number | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  /** Snapshot GET khi mở app — WS ghi đè khi đã có. */
+  
   const [httpLed, setHttpLed] = useState<{ on?: boolean; temp?: number }>({});
   const ledUserTouchedRef = useRef(false);
 

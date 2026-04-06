@@ -11,7 +11,7 @@ import {
   SMART_BUILDING_BASE_URL,
 } from "../lib/config";
 
-/** GET timeseries TB: ưu tiên ApiKey mẫu; không có thì dùng JWT (cùng lúc với WS). */
+
 function getNewgenTelemetryReadHeaders(): Record<string, string> | null {
   const apiKey = getNewgenSampleDevicesApiKey();
   if (apiKey) {
@@ -35,10 +35,7 @@ const JSON_POST_HEADERS_BASE = {
   "Content-Type": "application/json",
 } as const;
 
-/**
- * POST SHARED_SCOPE (bật/tắt) — ApiKey mẫu hoặc Bearer JWT (giống GET timeseries).
- * Mini-app gọi các hàm POST công khai qua `deviceControlHttp.ts` (tách biệt với WS chỉ đọc).
- */
+
 function getNewgenSharedScopeWriteHeaders(): Record<string, string> | null {
   const apiKey = getNewgenSampleDevicesApiKey();
   if (apiKey) {
@@ -133,7 +130,6 @@ export async function createDeviceInNewGen(body: Record<string, unknown>): Promi
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      // ThingsBoard/NewGen usually accepts Bearer token in X-Authorization
       "X-Authorization": `Bearer ${apiKey}`,
     },
     body: JSON.stringify(body),
@@ -163,7 +159,7 @@ export async function saveDeviceToSmartBuilding(username: string, device: TbDevi
   return parsed;
 }
 
-/** Smart Home: 5 thiết bị / trang; dùng `page` (0-based) + `hasNext` để phân trang. */
+
 export const NEWGEN_SAMPLE_PAGE_SIZE = 5;
 
 export interface NewgenCustomerDevicesPageResult {
@@ -175,7 +171,7 @@ export interface NewgenCustomerDevicesPageResult {
   hasNext: boolean;
 }
 
-/** Danh sách thiết bị theo customer (Newgen / ThingsBoard) — header ApiKey. */
+
 export async function fetchNewgenCustomerDevices(
   customerId: string,
   opts: { pageSize?: number; page?: number } = {},
@@ -231,7 +227,7 @@ export async function fetchNewgenCustomerDevices(
   };
 }
 
-/** Thiết bị mẫu cho Smart Home — customer ID cố định; `page` 0-based. */
+
 export async function fetchNewgenCustomerSampleDevices(page = 0): Promise<NewgenCustomerDevicesPageResult> {
   return fetchNewgenCustomerDevices(NEWGEN_SAMPLE_CUSTOMER_ID, {
     pageSize: NEWGEN_SAMPLE_PAGE_SIZE,
@@ -248,7 +244,7 @@ function parseEnvDeviceIdList(envKey: string): string[] {
     .filter(Boolean);
 }
 
-/** Nhận diện công tắc (Smart Switch) để gửi telemetry `power` lên Newgen. */
+
 export function isSmartSwitchTelemetryDevice(d: SmartBuildingDeviceRecord): boolean {
   const id = String(d.deviceId ?? d.device?.id?.id ?? "").trim();
   const gatewayIds = parseEnvDeviceIdList("VITE_NEWGEN_GATEWAY_SOCKET_DEVICE_IDS");
@@ -267,10 +263,7 @@ export function isSmartSwitchTelemetryDevice(d: SmartBuildingDeviceRecord): bool
   );
 }
 
-/**
- * Gateway / Home Assistant plug (dashboard: GET `state-plug`, SET SHARED `cmd-socket`).
- * Nếu thiết bị không khớp tên (ví dụ chỉ là "Đèn X") — thêm UUID vào `VITE_NEWGEN_GATEWAY_SOCKET_DEVICE_IDS`.
- */
+
 export function isGatewaySocketTelemetryDevice(d: SmartBuildingDeviceRecord): boolean {
   const id = String(d.deviceId ?? d.device?.id?.id ?? "").trim();
   const envIds = parseEnvDeviceIdList("VITE_NEWGEN_GATEWAY_SOCKET_DEVICE_IDS");
@@ -294,14 +287,12 @@ export function isGatewaySocketTelemetryDevice(d: SmartBuildingDeviceRecord): bo
   if (/^home assistant$/i.test(String(d.label ?? d.device?.label ?? "").trim())) {
     return true;
   }
-  // Đèn hành lang / ổ cắm / plug — nếu không gắn nhãn "gateway" vẫn cần WS `state-plug`
   if (
     /hành\s*lang|hanh\s*lang|hallway|hall\s+plug|đèn\s+hành|den\s+hanh/.test(t) ||
     /ổ\s*cắm|o\s*cam|smart\s*plug|wall\s*socket|ổ\s*điện|o\s*dien/.test(t)
   ) {
     return true;
   }
-  // Dashboard TB: "Đèn chiếu sáng hành lang" — widget Power → POST `cmd-socket`
   if (
     (/chiếu\s*sáng|chieu\s+sang/.test(t) || /đèn\s+chiếu|den\s+chieu/.test(t)) &&
     /hành\s*lang|hanh\s*lang|hallway/.test(t)
@@ -311,7 +302,7 @@ export function isGatewaySocketTelemetryDevice(d: SmartBuildingDeviceRecord): bo
   return false;
 }
 
-/** LED strip / đèn dải — WS `state-light` + `color-temp-light`; POST SHARED `cmd-light` + `cmd-color-temp-light`. */
+
 export function isLedStripTelemetryDevice(d: SmartBuildingDeviceRecord): boolean {
   if (isSmartSwitchTelemetryDevice(d)) return false;
   const id = String(d.deviceId ?? d.device?.id?.id ?? "").trim();
@@ -334,7 +325,7 @@ export function isLedStripTelemetryDevice(d: SmartBuildingDeviceRecord): boolean
   );
 }
 
-/** Cảm biến khói — timeseries `smokeDetected` (status_widget). */
+
 export function isSmokeSensorTelemetryDevice(d: SmartBuildingDeviceRecord): boolean {
   const id = String(d.deviceId ?? d.device?.id?.id ?? "").trim();
   const envIds = parseEnvDeviceIdList("VITE_NEWGEN_SMOKE_SENSOR_DEVICE_IDS");
@@ -353,7 +344,7 @@ export function isSmokeSensorTelemetryDevice(d: SmartBuildingDeviceRecord): bool
   return /\bsmoke\b|\bkhói\b|\bkhoi\b|cảm biến khói|cam bien khoi|smoke sensor|báo khói|bao khoi/.test(t);
 }
 
-/** Cảm biến người (PIR/human presence) — timeseries `human_sensor`. */
+
 export function isHumanSensorTelemetryDevice(d: SmartBuildingDeviceRecord): boolean {
   const id = String(d.deviceId ?? d.device?.id?.id ?? "").trim();
   const envIds = parseEnvDeviceIdList("VITE_NEWGEN_HUMAN_SENSOR_DEVICE_IDS");
@@ -372,25 +363,20 @@ export function isHumanSensorTelemetryDevice(d: SmartBuildingDeviceRecord): bool
   return /\bhuman\b|\bpir\b|\bpresence\b|\bngười\b|\bperson\b|human sensor|cảm biến người|cam bien nguoi/.test(t);
 }
 
-/** Key timeseries — khớp với `smoke_sensor` trong WS và dashboard widget. */
+
 export const SMOKE_DETECTED_TELEMETRY_KEY = "smoke_sensor";
 
-/** Alias dashboard cũ / rule TB — cùng ý nghĩa với `smoke_sensor`. */
+
 export const SMOKE_DETECTED_TELEMETRY_KEY_ALT = "smokeDetected";
 
-/** Key timeseries — cảm biến người. */
+
 export const HUMAN_SENSOR_TELEMETRY_KEY = "human_sensor";
 
-/** Alias — cùng ý nghĩa với `human_sensor`. */
+
 export const HUMAN_SENSOR_TELEMETRY_KEY_ALT = "humanDetected";
 
-/**
- * Cùng logic `dataToValueFunction` trong dashboard (boolean / chuỗi alarm).
- */
-/**
- * Parse giá trị `smoke_sensor` / `smokeDetected` từ WS hoặc HTTP timeseries.
- * Nhận biết: `"detected"` → true, `"cleared"` → false + các dạng boolean/chuỗi khác.
- */
+
+
 export function parseSmokeDetectedValue(data: unknown): boolean {
   if (data === true || data === 1) return true;
   if (data === false || data === 0) return false;
@@ -444,9 +430,7 @@ function latestTimeseriesValue(
   return points[0].value;
 }
 
-/**
- * Đọc giá trị mới nhất của `smokeDetected` (GET timeseries).
- */
+
 export async function fetchDeviceSmokeDetectedLatest(deviceId: string): Promise<boolean | null> {
   const headers = getNewgenTelemetryReadHeaders();
   if (!headers) return null;
@@ -479,7 +463,7 @@ export async function fetchDeviceSmokeDetectedLatest(deviceId: string): Promise<
   }
 }
 
-/** Đọc giá trị mới nhất của `human_sensor` (GET timeseries). */
+
 export async function fetchDeviceHumanSensorLatest(deviceId: string): Promise<boolean | null> {
   const headers = getNewgenTelemetryReadHeaders();
   if (!headers) return null;
@@ -510,12 +494,12 @@ export async function fetchDeviceHumanSensorLatest(deviceId: string): Promise<bo
 
 const SHARED_SCOPE_CMD_KEYS = ["cmd-sw1", "cmd-sw2", "cmd-sw3", "cmd-sw4"] as const;
 
-/** Trạng thái đọc từ attribute (dashboard power_button — GET_ATTRIBUTE `state-sw1`…). */
+
 export const SMART_SWITCH_STATE_KEYS = ["state-sw1", "state-sw2", "state-sw3", "state-sw4"] as const;
 
 export type SmartSwitchChannel = 1 | 2 | 3 | 4;
 
-/** Giống parse on/off WS / demo TB — `undefined` nếu key không có (để merge nhiều scope). */
+
 function parseSwitchOnOffAttr(v: unknown): boolean | undefined {
   if (v === undefined || v === null) return undefined;
   if (typeof v === "boolean") return v;
@@ -541,13 +525,7 @@ function attributesResponseToMap(data: unknown): Record<string, unknown> {
   return map;
 }
 
-/**
- * GET trạng thái 4 kênh khi mở app — giống flow demo WS:
- * 1) `state-sw*` trên **CLIENT_SCOPE** (thiết bị báo),
- * 2) bổ sung chỗ trống bằng **`cmd-sw*` SHARED_SCOPE** (lệnh gần nhất),
- * 3) cuối cùng thử **SERVER_SCOPE** + `state-sw*`.
- * Dùng **JWT hoặc ApiKey** (`getNewgenTelemetryReadHeaders`), không chỉ ApiKey.
- */
+
 export async function fetchDeviceSwitchChannelStates(
   deviceId: string,
 ): Promise<[boolean, boolean, boolean, boolean] | null> {
@@ -583,9 +561,7 @@ export async function fetchDeviceSwitchChannelStates(
       if (!res.ok) return;
       const data: unknown = await res.json().catch(() => null);
       fillFromMap(attributesResponseToMap(data), keys[0], keys[1], keys[2], keys[3]);
-    } catch {
-      /* ignore */
-    }
+    } catch {}
   };
 
   await pull("CLIENT_SCOPE", SMART_SWITCH_STATE_KEYS);
@@ -597,15 +573,13 @@ export async function fetchDeviceSwitchChannelStates(
   return [acc[0] ?? false, acc[1] ?? false, acc[2] ?? false, acc[3] ?? false];
 }
 
-/** Attribute trạng thái ổ cắm / gateway (widget power_button). */
+
 export const GATEWAY_PLUG_STATE_KEY = "state-plug";
 
-/** SHARED lệnh điều khiển đèn hành lang — bổ sung khi `state-plug` chưa có (giống `cmd-sw*` / smart switch). */
+
 const GATEWAY_PLUG_CMD_SOCKET_KEY = "cmd-socket";
 
-/**
- * Đọc trạng thái gateway / đèn hành lang — **CLIENT** `state-plug` trước, rồi **SHARED** (`state-plug` + `cmd-socket`), cuối **SERVER** `state-plug`.
- */
+
 export async function fetchDeviceGatewayPlugState(deviceId: string): Promise<boolean | null> {
   const headers = getNewgenTelemetryReadHeaders();
   if (!headers) return null;
@@ -632,9 +606,7 @@ export async function fetchDeviceGatewayPlugState(deviceId: string): Promise<boo
       if (!res.ok) return;
       const data: unknown = await res.json().catch(() => null);
       tryKeys(attributesResponseToMap(data), keys);
-    } catch {
-      /* ignore */
-    }
+    } catch {}
   };
 
   await pull("CLIENT_SCOPE", [GATEWAY_PLUG_STATE_KEY]);
@@ -645,7 +617,7 @@ export async function fetchDeviceGatewayPlugState(deviceId: string): Promise<boo
   return resolved;
 }
 
-/** LED strip — attribute đọc (WS cùng key). */
+
 export const LED_STATE_LIGHT_ATTR_KEY = "state-light";
 export const LED_COLOR_TEMP_ATTR_KEY = "color-temp-light";
 const LED_CMD_LIGHT_KEY = "cmd-light";
@@ -667,9 +639,7 @@ function parseLedColorTempAttr(v: unknown): number | undefined {
   return Math.max(0, Math.min(100, Math.round(n)));
 }
 
-/**
- * Snapshot ban đầu LED strip — CLIENT `state-light` / `color-temp-light`, bổ sung SHARED (`cmd-light`, `cmd-color-temp-light`), rồi SERVER.
- */
+
 export async function fetchDeviceLedStripStates(
   deviceId: string,
 ): Promise<{ lightOn: boolean; colorTemp: number } | null> {
@@ -701,9 +671,7 @@ export async function fetchDeviceLedStripStates(
       if (!res.ok) return;
       const data: unknown = await res.json().catch(() => null);
       fillFromMap(attributesResponseToMap(data));
-    } catch {
-      /* ignore */
-    }
+    } catch {}
   };
 
   await pull("CLIENT_SCOPE", [LED_STATE_LIGHT_ATTR_KEY, LED_COLOR_TEMP_ATTR_KEY]);
@@ -719,10 +687,7 @@ export async function fetchDeviceLedStripStates(
   return { lightOn: light ?? false, colorTemp: temp ?? 50 };
 }
 
-/**
- * POST `/api/plugins/telemetry/DEVICE/{id}/SHARED_SCOPE` — body `{ power: "on" | "off" }`.
- * (Legacy / thiết bị một kênh `power`.)
- */
+
 export async function postDeviceSharedScopePower(deviceId: string, powerOn: boolean): Promise<void> {
   const headers = getNewgenSharedScopeWriteHeaders();
   if (!headers) {
@@ -741,12 +706,7 @@ export async function postDeviceSharedScopePower(deviceId: string, powerOn: bool
   }
 }
 
-/**
- * Smart Switch 4 kênh — giống widget ThingsBoard (Power từng kênh):
- * `POST {NEWGEN_API_BASE}/plugins/telemetry/DEVICE/{deviceId}/SHARED_SCOPE`
- * với JSON **một key mỗi lần**: `{ "cmd-sw1": "on" | "off" }` … `{ "cmd-sw4": "on" | "off" }`.
- * Đọc trạng thái: attribute `state-sw1`…`state-sw4` (WS trong app).
- */
+
 export async function postDeviceSharedScopeSwitchChannel(
   deviceId: string,
   channel: SmartSwitchChannel,
@@ -770,9 +730,7 @@ export async function postDeviceSharedScopeSwitchChannel(
   }
 }
 
-/**
- * POST CLIENT_SCOPE `{ "state-plug": "on"|"off" }` — tùy chọn (app đèn hành lang dùng SHARED `cmd-socket`).
- */
+
 export async function postDeviceClientScopeStatePlug(deviceId: string, on: boolean): Promise<void> {
   const headers = getNewgenSharedScopeWriteHeaders();
   if (!headers) {
@@ -791,9 +749,7 @@ export async function postDeviceClientScopeStatePlug(deviceId: string, on: boole
   }
 }
 
-/**
- * HTTP SHARED_SCOPE `{ "cmd-socket": "on" | "off" }` — đường chính cho đèn hành lang NewGen (`sendGatewayPlugHallwayControl`).
- */
+
 export async function postDeviceSharedScopeSocketPower(deviceId: string, on: boolean): Promise<void> {
   const headers = getNewgenSharedScopeWriteHeaders();
   if (!headers) {
@@ -812,9 +768,7 @@ export async function postDeviceSharedScopeSocketPower(deviceId: string, on: boo
   }
 }
 
-/**
- * LED strip — POST SHARED_SCOPE `{ "cmd-light": "on" | "off" }`.
- */
+
 export async function postDeviceSharedScopeLedLight(deviceId: string, on: boolean): Promise<void> {
   const headers = getNewgenSharedScopeWriteHeaders();
   if (!headers) {
@@ -833,9 +787,7 @@ export async function postDeviceSharedScopeLedLight(deviceId: string, on: boolea
   }
 }
 
-/**
- * LED strip — POST SHARED_SCOPE `{ "cmd-color-temp-light": <0…100> }` (số nguyên).
- */
+
 export async function postDeviceSharedScopeLedColorTemp(deviceId: string, value: number): Promise<void> {
   const headers = getNewgenSharedScopeWriteHeaders();
   if (!headers) {
@@ -855,7 +807,7 @@ export async function postDeviceSharedScopeLedColorTemp(deviceId: string, value:
   }
 }
 
-/** Fetch tất cả các trang thiết bị từ Newgen customer. Trả về [] nếu thiếu API key hoặc lỗi. */
+
 async function fetchAllNewgenDevices(): Promise<SmartBuildingDeviceRecord[]> {
   const apiKey = getNewgenSampleDevicesApiKey();
   if (!apiKey) return [];
@@ -877,7 +829,7 @@ async function fetchAllNewgenDevices(): Promise<SmartBuildingDeviceRecord[]> {
   return all;
 }
 
-/** Chỉ NewGen — dùng cho trang Smart Home (không gọi campus `by-username`). */
+
 export async function fetchSmartHomeDevicesFromNewgen(): Promise<SmartBuildingDeviceRecord[]> {
   return fetchAllNewgenDevices();
 }
@@ -901,7 +853,6 @@ export async function getDevicesByUsername(username: string): Promise<SmartBuild
 
   const newgen = newgenDevices.status === "fulfilled" ? newgenDevices.value : [];
 
-  // Merge: campus takes priority; newgen fills in devices not already in campus (dedup by deviceId).
   const seenIds = new Set(campusDevices.map((d) => d.deviceId).filter(Boolean));
   const merged = [
     ...campusDevices,
@@ -910,7 +861,6 @@ export async function getDevicesByUsername(username: string): Promise<SmartBuild
   return merged;
 }
 
-// Step 6 + Step 7 helper: create in NewGen then persist to SmartBuilding.
 export async function createAndStoreDevice(
   username: string,
   newGenRequestBody: Record<string, unknown>,

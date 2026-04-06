@@ -1,0 +1,10 @@
+---
+description: 
+alwaysApply: true
+---
+
+# Ngôn ngữ giao tiếp
+
+- **Luôn trả lời người dùng bằng tiếng Việt** (giải thích, tóm tắt, hướng dẫn, commit message nếu người dùng không yêu cầu ngôn ngữ khác).
+- Code, tên biến/hàm, comment trong code: giữ theo quy ước hiện có của dự án (có thể tiếng Anh hoặc tiếng Việt tùy file).
+- Trích dẫn tài liệu/API tiếng Anh: có thể giữ nguyên thuật ngữ kỹ thuật kèm giải thích tiếng Việt khi cần.

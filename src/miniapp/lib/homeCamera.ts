@@ -13,7 +13,6 @@ export function labelForHomeDevice(d: SmartBuildingDeviceRecord): string {
   );
 }
 
-/** Coi là camera nếu UID nằm trong danh sách từ user-info hoặc type/tên gợi ý camera. */
 export function isHomeCameraDevice(d: SmartBuildingDeviceRecord, cameraUidSet: Set<string>): boolean {
   const id = String(d.deviceId ?? d.device?.id?.id ?? "").trim();
   if (id && cameraUidSet.has(id)) return true;

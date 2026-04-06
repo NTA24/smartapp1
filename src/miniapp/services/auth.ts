@@ -3,8 +3,8 @@ import { getAuthCode as apiGetAuthCode } from "../../api/authentication/getAuthC
 import { authorize } from "../../api/permissions/authorize";
 import { getLocation } from "../../api/location/getLocation";
 
-const WV_READY_TIMEOUT_MS = 12000; // Đợi tối đa 12s (CDN load + super app inject)
-const WV_POLL_INTERVAL_MS = 150;  // Kiểm tra mỗi 150ms
+const WV_READY_TIMEOUT_MS = 12000;
+const WV_POLL_INTERVAL_MS = 150;
 
 export function isWindVaneReady(): boolean {
   return typeof window !== "undefined" && !!window.WindVane && typeof window.WindVane.call === "function";
@@ -23,12 +23,10 @@ export function onWindVaneReady(): Promise<void> {
       resolve();
     };
 
-    // 1. Lắng nghe event WindVaneReady (super app có thể fire khi inject xong)
     if (typeof document !== "undefined") {
       document.addEventListener("WindVaneReady", () => finish(), { once: true });
     }
 
-    // 2. Poll kiểm tra window.WindVane
     const pollStart = Date.now();
     const pollId = setInterval(() => {
       if (done) {
@@ -44,7 +42,6 @@ export function onWindVaneReady(): Promise<void> {
       }
     }, WV_POLL_INTERVAL_MS);
 
-    // 3. Timeout tổng
     setTimeout(() => {
       clearInterval(pollId);
       if (!done) finish();
@@ -52,7 +49,7 @@ export function onWindVaneReady(): Promise<void> {
   });
 }
 
-/** Một số nền tảng (Tammi) chỉ chấp nhận scope "auth_user" thay vì USER_NAME/USER_PHONE_NUMBER */
+
 const FALLBACK_SCOPES = ["auth_user"];
 
 function errorMessage(err: unknown): string {
@@ -64,22 +61,16 @@ function errorMessage(err: unknown): string {
 async function ensurePermissions(scopes: string[]): Promise<void> {
   try {
     await authorize("location");
-  } catch {
-    /* ignore */
-  }
+  } catch {}
 
   try {
     await getLocation({});
-  } catch {
-    /* ignore */
-  }
+  } catch {}
 
   for (const scope of scopes) {
     try {
       await authorize(scope);
-    } catch {
-      /* ignore */
-    }
+    } catch {}
   }
 }
 
@@ -144,7 +135,7 @@ async function getAuthCodeWithRetry(
   }
 }
 
-/** Đợi WindVane, xin quyền cần thiết, rồi gọi API getAuthCode có retry/fallback. */
+
 export function getAuthCode(scopes: string[] = [...DEFAULT_SCOPES]): Promise<{ authCode: string; scopes: string[] }> {
   return getAuthCodeWithRetry(scopes, 0);
 }

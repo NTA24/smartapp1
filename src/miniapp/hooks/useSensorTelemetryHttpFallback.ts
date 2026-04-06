@@ -1,9 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-/**
- * Cảm biến khói / người: ưu tiên WS; **GET timeseries ngay khi mount** nếu WS chưa có giá trị — giống hydrate smart switch.
- * Khi tab visible lại: GET bổ sung nếu vẫn chưa có WS.
- */
 export function useSensorTelemetryHttpFallback(
   wsState: boolean | undefined,
   deviceId: string,

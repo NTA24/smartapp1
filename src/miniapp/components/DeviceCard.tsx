@@ -50,11 +50,7 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({
   /* ── WS realtime — giống demo HTML: mọi push (state-sw* / cmd-sw*) → 1 tuple ── */
   const swWs = useSmartSwitchStatesWs(quadSwitch ? deviceId : null);
 
-  /**
-   * Optimistic overlay: khi user bấm trên app, hiện ngay trạng thái mới
-   * trước khi WS push back. WS push back → xoá optimistic (wsRev đổi).
-   * Giống demo HTML: `updateAttributeState(key, nextChecked)` ngay sau POST.
-   */
+  
   const [optimistic, setOptimistic] = useState<Record<number, boolean>>({});
   useEffect(() => {
     setOptimistic({});
@@ -68,12 +64,7 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({
     optimistic[3] ?? wsSlots[3] ?? false,
   ];
 
-  /**
-   * Giống demo HTML `saveCommandAttribute(key, checked)`:
-   * 1. Optimistic UI ngay (setOptimistic)
-   * 2. POST SHARED_SCOPE `{ "cmd-sw*": "on"|"off" }`
-   * 3. TB push WS → wsRev đổi → optimistic bị xoá → hiện giá trị WS thật
-   */
+  
   const onChannelToggle = useCallback(
     (channel: SmartSwitchChannel) => {
       if (!onRemoteSwitchChannelChange) return;

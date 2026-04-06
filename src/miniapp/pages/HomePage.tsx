@@ -29,7 +29,7 @@ export const HomePage: React.FC = () => {
   const { userPhone } = useMiniApp();
   const loadingUser = useAuthLoading(userPhone);
   const [refreshingDevices, setRefreshingDevices] = useState(false);
-  /** Smart Home: chỉ NewGen — không gọi campus `by-username`. */
+  
   const [smartHomeDevices, setSmartHomeDevices] = useState<SmartBuildingDeviceRecord[]>([]);
 
   const loadSmartHomeDevices = useCallback(async () => {
@@ -48,9 +48,7 @@ export const HomePage: React.FC = () => {
     let digits = raw.replace(/[^\d]/g, "");
     if (!digits) return "";
 
-    // Bỏ mã quốc gia lặp để tránh dạng (+84) 84xxxx...
     while (digits.startsWith("84")) digits = digits.slice(2);
-    // Dữ liệu nội địa thường bắt đầu bằng 0
     if (digits.startsWith("0")) digits = digits.slice(1);
     while (digits.startsWith("84")) digits = digits.slice(2);
 

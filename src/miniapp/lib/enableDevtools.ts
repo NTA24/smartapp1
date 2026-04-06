@@ -1,15 +1,3 @@
-/**
- * Dev / trace trên Mini App (WebView trong Super App — không có F12).
- *
- * Hai lớp riêng:
- * 1) Panel log trong app (addLog) — nên dùng trên iPhone, không cần tải script ngoài.
- *    → VITE_ENABLE_MINIAPP_LOG_UI=true hoặc ?logui=1 hoặc localStorage miniapp_log_ui=1
- *    → npm run dev: mặc định bật panel log (import.meta.env.DEV)
- *
- * 2) Eruda (console giả trên màn hình) — có thể bị Super App chặn CDN.
- *    → VITE_ENABLE_DEVTOOLS=true hoặc ?devtools=1 hoặc localStorage miniapp_devtools=1
- */
-
 let erudaInitDone = false;
 let tracingInitDone = false;
 let vconsoleInitDone = false;
@@ -36,9 +24,7 @@ export function isMiniAppDevtoolsEnabled(): boolean {
 
   try {
     if (window.localStorage.getItem("miniapp_devtools") === "1") return true;
-  } catch {
-    /* ignore */
-  }
+  } catch {}
 
   const p = parseQueryFromLocation();
   if (p.get("devtools") === "1") return true;
@@ -46,7 +32,6 @@ export function isMiniAppDevtoolsEnabled(): boolean {
   return false;
 }
 
-/** Panel “MiniApp log” (addLog): hiện trên màn hình, phù hợp iPhone / Super App. */
 export function isMiniAppLogUiEnabled(): boolean {
   if (typeof window === "undefined") return false;
 
@@ -56,9 +41,7 @@ export function isMiniAppLogUiEnabled(): boolean {
 
   try {
     if (window.localStorage.getItem("miniapp_log_ui") === "1") return true;
-  } catch {
-    /* ignore */
-  }
+  } catch {}
 
   const p = parseQueryFromLocation();
   if (p.get("logui") === "1") return true;
@@ -92,13 +75,8 @@ export async function initMiniAppDevtools(): Promise<void> {
   }
 }
 
-/**
- * vConsole cho mobile WebView (UI giống ảnh bạn gửi).
- * Ưu tiên vConsole vì tương thích mini app tốt hơn; có guard tránh "already exists".
- */
 export async function initMiniAppVConsole(): Promise<void> {
   if (typeof window === "undefined" || !isMiniAppDevtoolsEnabled()) return;
-  // HashRouter: url có dạng "#/zyapp/..." (pathname vẫn là "/").
   const isCameraRoute = () => {
     const h = String(window.location.hash ?? "").toLowerCase();
     return (
@@ -113,14 +91,12 @@ export async function initMiniAppVConsole(): Promise<void> {
     if (!isCameraRoute()) return;
 
     try {
-      // Container hay gặp nhất: #vconsole
       const byId = ["vconsole", "vConsole", "miniapp-vconsole", "miniapp-vconsole-root"];
       for (const id of byId) {
         const el = document.getElementById(id);
         if (el) el.style.display = "none";
       }
 
-      // Nút trigger: thường có text chứa "vConsole"
       document.querySelectorAll("button,div,span").forEach((el) => {
         const t = (el.textContent ?? "").trim();
         if (!t) return;
@@ -128,26 +104,21 @@ export async function initMiniAppVConsole(): Promise<void> {
           (el as HTMLElement).style.display = "none";
         }
       });
-    } catch {
-      // ignore
-    }
+    } catch {}
   };
 
-  // Dù vConsole init trước đó hay init sau, vẫn cần hide khi chuyển sang route camera.
   window.addEventListener("hashchange", hideVConsoleUi);
   window.addEventListener("popstate", hideVConsoleUi);
   hideVConsoleUi();
 
   if (vconsoleInitDone) return;
 
-  // Nếu host app/SDK đã cài sẵn vConsole thì không khởi tạo lại.
   if (window.vConsole || window.__miniapp_vconsole__) {
     vconsoleInitDone = true;
     hideVConsoleUi();
     return;
   }
 
-  // Không init mới khi đang ở route camera.
   if (isCameraRoute()) {
     vconsoleInitDone = true;
     hideVConsoleUi();
@@ -184,7 +155,6 @@ export async function initMiniAppVConsole(): Promise<void> {
   }
 }
 
-/** Trace fetch + WindVane.call để bắt lỗi 401 / JSAPI khi Mini App nhảy màn. */
 export function initMiniAppTracing(): void {
   if (typeof window === "undefined" || tracingInitDone) return;
   if (!isMiniAppLogUiEnabled() && !isMiniAppDevtoolsEnabled()) return;
