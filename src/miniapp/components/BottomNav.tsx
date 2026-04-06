@@ -1,5 +1,5 @@
-import React from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import React, { useCallback } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { HomeOutlined, AppstoreOutlined, ThunderboltOutlined, ShoppingCartOutlined, UserOutlined } from "@ant-design/icons";
 import { updateCameraFlowTrace } from "../utils/cameraFlow";
 
@@ -13,30 +13,25 @@ const NAV_ITEMS = [
 
 export const BottomNav: React.FC = () => {
   const location = useLocation();
-  const navigate = useNavigate();
   const pathname = location.pathname || "/";
 
   if (pathname.startsWith("/zyapp/camera/")) return null;
 
   const currentPage = pathname === "/" ? "home" : pathname.split("/")[1] || "home";
 
-  const onNavItemClick =
-    (path: string, page: string) => async (e: React.MouseEvent<HTMLAnchorElement>) => {
-      if (page !== "zyapp") return;
-      e.preventDefault();
-      const traceId = `camera-flow-${Date.now()}`;
-      updateCameraFlowTrace({
-        traceId,
-        clickedAt: new Date().toISOString(),
-        navPath: path,
-        clicked: true,
-      });
-      updateCameraFlowTrace({
-        tokenApiStatus: "skipped",
-        tokenSource: "requestAuthAndPhone:user-info",
-      });
-      navigate(path);
-    };
+  const onZyappNavClick = useCallback(() => {
+    const traceId = `camera-flow-${Date.now()}`;
+    updateCameraFlowTrace({
+      traceId,
+      clickedAt: new Date().toISOString(),
+      navPath: "/zyapp",
+      clicked: true,
+    });
+    updateCameraFlowTrace({
+      tokenApiStatus: "skipped",
+      tokenSource: "requestAuthAndPhone:user-info",
+    });
+  }, []);
 
   return (
     <nav className="bottom-nav">
@@ -46,7 +41,7 @@ export const BottomNav: React.FC = () => {
           to={path}
           className={`nav-item ${currentPage === page ? "active" : ""}`}
           data-page={page}
-          onClick={onNavItemClick(path, page)}
+          onClick={page === "zyapp" ? onZyappNavClick : undefined}
         >
           <span className="nav-icon">
             <Icon />

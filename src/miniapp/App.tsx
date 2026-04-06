@@ -17,11 +17,7 @@ import { WsHumanSensorLabPage } from "./pages/WsHumanSensorLabPage";
 import { WsHallwayPlugLabPage } from "./pages/WsHallwayPlugLabPage";
 import { MiniAppLogPanel } from "./components/MiniAppLogPanel";
 
-type PlaceholderRoute = {
-  path: string;
-  title: string;
-  backTo: string;
-};
+type PlaceholderRoute = { path: string; title: string; backTo: string };
 
 const PLACEHOLDER_ROUTES: PlaceholderRoute[] = [
   { path: "/device/:deviceId/timer/add", title: "Thêm hẹn giờ", backTo: "/" },

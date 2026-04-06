@@ -10,6 +10,7 @@ import {
   NEWGEN_DEVICE_WITH_CREDENTIALS_URL,
   SMART_BUILDING_BASE_URL,
 } from "../lib/config";
+import { addLog } from "../lib/debugLog";
 
 
 function getNewgenTelemetryReadHeaders(): Record<string, string> | null {
@@ -235,13 +236,23 @@ export async function fetchNewgenCustomerSampleDevices(page = 0): Promise<Newgen
   });
 }
 
+const ENV_DEVICE_ID_LIST_CACHE = new Map<string, string[]>();
+
 function parseEnvDeviceIdList(envKey: string): string[] {
-  return String(
-    (typeof import.meta !== "undefined" ? (import.meta.env as Record<string, unknown>)[envKey] : "") ?? "",
-  )
-    .split(/[,;\s]+/)
-    .map((s) => s.trim())
-    .filter(Boolean);
+  if (!ENV_DEVICE_ID_LIST_CACHE.has(envKey)) {
+    const raw =
+      typeof import.meta !== "undefined"
+        ? (import.meta.env as Record<string, unknown>)[envKey]
+        : "";
+    ENV_DEVICE_ID_LIST_CACHE.set(
+      envKey,
+      String(raw ?? "")
+        .split(/[,;\s]+/)
+        .map((s) => s.trim())
+        .filter(Boolean),
+    );
+  }
+  return ENV_DEVICE_ID_LIST_CACHE.get(envKey)!;
 }
 
 
@@ -766,6 +777,13 @@ export async function postDeviceSharedScopeSocketPower(deviceId: string, on: boo
   if (!res.ok) {
     throw new Error(readMessage(data) || `Telemetry SHARED_SCOPE HTTP ${res.status}`);
   }
+}
+
+export async function sendGatewayPlugHallwayControl(deviceId: string | null, on: boolean): Promise<void> {
+  if (!deviceId?.trim()) return;
+  const id = deviceId.trim();
+  await postDeviceSharedScopeSocketPower(id, on);
+  addLog("[hallway_plug]", id, on ? "on" : "off", "cmd-socket SHARED_SCOPE ok");
 }
 
 

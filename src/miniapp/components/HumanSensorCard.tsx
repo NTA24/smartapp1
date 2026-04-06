@@ -61,6 +61,7 @@ export const HumanSensorCard: React.FC<HumanSensorCardProps> = ({ deviceId, titl
       wsState={displayState}
       wsRev={wsRev}
       variant="alarm"
+      alarmTheme="human"
       NormalIcon={HumanNormalIcon}
       AlarmIcon={HumanDetectedIcon}
       alarmLabel="Detected"

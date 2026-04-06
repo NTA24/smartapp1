@@ -1,27 +1,25 @@
 import React from "react";
+import { Typography } from "antd";
 import { Link } from "react-router-dom";
+import {
+  PlusOutlined,
+  UserOutlined,
+  AudioOutlined,
+  DesktopOutlined,
+  AppstoreOutlined,
+  SettingOutlined,
+  MessageOutlined,
+  MobileOutlined,
+  CheckCircleFilled,
+} from "@ant-design/icons";
 import { useMiniApp } from "../context/MiniAppContext";
-import { PlusOutlined, UserOutlined, AudioOutlined, DesktopOutlined, AppstoreOutlined, SettingOutlined, MessageOutlined } from "@ant-design/icons";
 import { useAuthLoading } from "../hooks/useAuthLoading";
+import { formatPhone } from "../utils/phone";
 
 export const ProfilePage: React.FC = () => {
   const { userPhone } = useMiniApp();
   const loadingName = useAuthLoading(userPhone);
-
-  const formatPhone = (phone: string) => {
-    const raw = String(phone || "").trim();
-    if (!raw) return "";
-
-    let digits = raw.replace(/[^\d]/g, "");
-    if (!digits) return "";
-    while (digits.startsWith("84")) digits = digits.slice(2);
-    if (digits.startsWith("0")) digits = digits.slice(1);
-    while (digits.startsWith("84")) digits = digits.slice(2);
-
-    return `(+84) ${digits}`;
-  };
-
-  const finalName = userPhone ? formatPhone(userPhone) : "";
+  const phoneDisplay = userPhone ? formatPhone(userPhone) : "Chưa có";
 
   return (
     <div className="profile-page">
@@ -33,57 +31,101 @@ export const ProfilePage: React.FC = () => {
         </div>
       )}
 
-      <div className="profile-page__account-section">
-        <div className="profile-page__account-id">
-          <Link to="/account">{finalName || "Chưa có"}</Link>
+      <header className="profile-page__header-compact">
+        <div className="profile-page__header-main">
+          <Typography.Title level={4} className="profile-page__header-title" style={{ margin: 0 }}>
+            <Link to="/account" className="profile-page__account-title-link">
+              Nhà của tôi
+            </Link>
+          </Typography.Title>
+          <Typography.Text type="secondary" className="profile-page__header-kicker">
+            Quản lý tài khoản
+          </Typography.Text>
         </div>
-        <div className="profile-page__account-sub">Quản lý tài khoản</div>
-        <div className="profile-page__account-phone">
-          <span className="profile-page__account-phone-label">Số điện thoại</span>
-          <div className="profile-page__account-phone-value">
-            <span className="profile-page__account-phone-number">{userPhone ? formatPhone(userPhone) : "Chưa có"}</span>
+        <div className="profile-page__phone-pill" title="Số điện thoại">
+          <MobileOutlined className="profile-page__phone-pill-icon" aria-hidden />
+          <span className="profile-page__phone-pill-value">{phoneDisplay}</span>
+        </div>
+      </header>
+
+      <div className="profile-page__stat-grid" role="group" aria-label="Tóm tắt">
+        <div className="profile-page__stat-card">
+          <span className="profile-page__stat-value">2</span>
+          <span className="profile-page__stat-label">Gia đình</span>
+        </div>
+        <div className="profile-page__stat-card">
+          <span className="profile-page__stat-value">1</span>
+          <span className="profile-page__stat-label">Thiết bị</span>
+        </div>
+      </div>
+
+      <div className="profile-page__card-block profile-page__card-block--members">
+        <div className="profile-page__card-block-head">
+          <div>
+            <Typography.Title level={5} className="profile-page__card-title" style={{ marginBottom: 4 }}>
+              Không gian nhà
+            </Typography.Title>
+            <Typography.Text type="secondary" className="profile-page__card-desc" style={{ margin: 0 }}>
+              Thành viên (1)
+            </Typography.Text>
+          </div>
+          <div className="profile-page__card-actions">
+            <button type="button" className="profile-page__icon-btn" aria-label="Thêm thành viên">
+              <PlusOutlined />
+            </button>
+            <Link to="/account" className="profile-page__icon-btn" aria-label="Quản lý gia đình">
+              <UserOutlined />
+            </Link>
           </div>
         </div>
-        <div className="profile-page__tags">
-          <span className="profile-page__tag">2 gia đình</span>
-          <span className="profile-page__tag">1 thiết bị</span>
-        </div>
-      </div>
-      <div className="profile-page__card-block">
-        <div className="profile-page__card-title">{finalName || "Chưa có"}</div>
-        <div className="profile-page__card-desc">Thành viên trong gia đình(1)</div>
-        <div className="profile-page__card-actions">
-          <button type="button" className="profile-page__icon-btn" aria-label="Thêm thành viên">
-            <PlusOutlined />
-          </button>
-          <Link to="/account" className="profile-page__icon-btn" aria-label="Quản lý gia đình">
+        <div className="profile-page__member-row">
+          <div className="profile-page__member-avatar" aria-hidden>
             <UserOutlined />
-          </Link>
+          </div>
+          <div className="profile-page__member-meta">
+            <div className="profile-page__member-name">Bạn</div>
+            <div className="profile-page__member-role">Chủ nhà</div>
+          </div>
+          <div className="profile-page__member-status">
+            <CheckCircleFilled className="profile-page__member-status-icon" aria-hidden />
+            <span>Hoạt động</span>
+          </div>
         </div>
       </div>
+
       <Link to="/voice" className="profile-page__list-item">
-        <div className="profile-page__list-icon profile-page__list-icon--blue"><AudioOutlined /></div>
+        <div className="profile-page__list-icon profile-page__list-icon--blue">
+          <AudioOutlined />
+        </div>
         <span className="profile-page__list-text">Trợ lý thoại</span>
         <span className="profile-page__list-arrow">›</span>
       </Link>
       <Link to="/devices" className="profile-page__list-item">
-        <div className="profile-page__list-icon profile-page__list-icon--green"><DesktopOutlined /></div>
+        <div className="profile-page__list-icon profile-page__list-icon--green">
+          <DesktopOutlined />
+        </div>
         <span className="profile-page__list-text">Quản lý nhiều thiết bị</span>
         <span className="profile-page__list-arrow">›</span>
       </Link>
       <Link to="/hub" className="profile-page__list-item">
-        <div className="profile-page__list-icon profile-page__list-icon--green"><AppstoreOutlined /></div>
+        <div className="profile-page__list-icon profile-page__list-icon--green">
+          <AppstoreOutlined />
+        </div>
         <span className="profile-page__list-text">Hub & cổng</span>
         <span className="profile-page__list-arrow">›</span>
       </Link>
       <Link to="/settings" className="profile-page__list-item">
-        <div className="profile-page__list-icon profile-page__list-icon--gray"><SettingOutlined /></div>
+        <div className="profile-page__list-icon profile-page__list-icon--gray">
+          <SettingOutlined />
+        </div>
         <span className="profile-page__list-text">Cài đặt khác</span>
         <span className="profile-page__list-arrow">›</span>
       </Link>
       <div className="profile-page__card-block profile-page__help-card">
         <Link to="/help" className="profile-page__list-item profile-page__help-item">
-          <div className="profile-page__list-icon profile-page__list-icon--blue"><MessageOutlined /></div>
+          <div className="profile-page__list-icon profile-page__list-icon--blue">
+            <MessageOutlined />
+          </div>
           <span className="profile-page__list-text">Trợ giúp và phản hồi</span>
           <span className="profile-page__list-arrow">›</span>
         </Link>

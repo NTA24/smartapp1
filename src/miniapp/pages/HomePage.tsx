@@ -1,28 +1,13 @@
 import React, { useCallback, useEffect, useState } from "react";
+import { Typography } from "antd";
 import { Link, NavLink } from "react-router-dom";
 import { MenuOutlined, SettingOutlined, SearchOutlined } from "@ant-design/icons";
-import { DeviceCard } from "../components/DeviceCard";
-import { LedStripCard } from "../components/LedStripCard";
-import { SmokeSensorCard } from "../components/SmokeSensorCard";
-import { HumanSensorCard } from "../components/HumanSensorCard";
+import { SmartHomeDeviceRow } from "../components/SmartHomeDeviceRow";
 import { useMiniApp } from "../context/MiniAppContext";
 import { useAuthLoading } from "../hooks/useAuthLoading";
-import {
-  deviceCardIconForKind,
-  deviceCardKindMeta,
-  inferDeviceCardKind,
-} from "../lib/deviceCardKind";
 import type { SmartBuildingDeviceRecord } from "../services/deviceSync";
-import {
-  fetchSmartHomeDevicesFromNewgen,
-  isGatewaySocketTelemetryDevice,
-  isHumanSensorTelemetryDevice,
-  isLedStripTelemetryDevice,
-  isSmokeSensorTelemetryDevice,
-  isSmartSwitchTelemetryDevice,
-} from "../services/deviceSync";
-import { sendGatewayPlugHallwayControl } from "../services/deviceControlHttp";
-import { postDeviceSharedScopeSwitchChannel } from "../services/deviceControlHttp";
+import { fetchSmartHomeDevicesFromNewgen } from "../services/deviceSync";
+import { formatPhone } from "../utils/phone";
 
 export const HomePage: React.FC = () => {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -41,22 +26,6 @@ export const HomePage: React.FC = () => {
     void loadSmartHomeDevices();
   }, [loadSmartHomeDevices]);
 
-  const formatPhone = (phone: string) => {
-    const raw = String(phone || "").trim();
-    if (!raw) return "";
-
-    let digits = raw.replace(/[^\d]/g, "");
-    if (!digits) return "";
-
-    while (digits.startsWith("84")) digits = digits.slice(2);
-    if (digits.startsWith("0")) digits = digits.slice(1);
-    while (digits.startsWith("84")) digits = digits.slice(2);
-
-    return `(+84) ${digits}`;
-  };
-
-  const userLabel = userPhone ? formatPhone(userPhone) : "…";
-
   const handleRefreshDevices = async () => {
     setRefreshingDevices(true);
     try {
@@ -64,70 +33,6 @@ export const HomePage: React.FC = () => {
     } finally {
       setRefreshingDevices(false);
     }
-  };
-
-  const renderDeviceRow = (d: SmartBuildingDeviceRecord, i: number) => {
-    const rawType = String(d.deviceType ?? d.device?.type ?? "Thiết bị");
-    const kind = inferDeviceCardKind(d);
-    const icon = deviceCardIconForKind(kind);
-    const meta = deviceCardKindMeta(kind, rawType);
-    const name =
-      String(d.label ?? d.device?.label ?? d.name ?? d.device?.name ?? "").trim() ||
-      `Thiết bị ${i + 1}`;
-    const id =
-      String(d.deviceId ?? d.device?.id?.id ?? `${i + 1}`).trim() ||
-      `${i + 1}`;
-
-    const isSwitch = isSmartSwitchTelemetryDevice(d);
-    const tbUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
-    const useNewgenSwitchPower = tbUuid && isSwitch;
-    const useSmokeSensor = tbUuid && !isSwitch && isSmokeSensorTelemetryDevice(d);
-    const useHumanSensor = tbUuid && !isSwitch && !useSmokeSensor && isHumanSensorTelemetryDevice(d);
-    const useLedStrip =
-      tbUuid && !isSwitch && !useSmokeSensor && !useHumanSensor && isLedStripTelemetryDevice(d);
-    const useGatewaySocket =
-      tbUuid &&
-      !isSwitch &&
-      !useSmokeSensor &&
-      !useHumanSensor &&
-      !useLedStrip &&
-      isGatewaySocketTelemetryDevice(d);
-
-    if (useSmokeSensor) {
-      return <SmokeSensorCard key={`smoke-${id}`} deviceId={id} title={name} />;
-    }
-    if (useHumanSensor) {
-      return <HumanSensorCard key={`human-${id}`} deviceId={id} title={name} />;
-    }
-    if (useLedStrip) {
-      return <LedStripCard key={`led-${id}`} deviceId={id} title={name} />;
-    }
-
-    return (
-      <DeviceCard
-        key={id}
-        deviceId={id}
-        name={name}
-        meta={meta}
-        statusLabel="Tắt"
-        icon={icon}
-        defaultOn={false}
-        deviceKind={kind}
-        onRemoteSwitchChannelChange={
-          useNewgenSwitchPower
-            ? (channel, nextOn) => postDeviceSharedScopeSwitchChannel(id, channel, nextOn)
-            : undefined
-        }
-        onRemotePowerChange={
-          useGatewaySocket
-            ? async (nextOn) => {
-                await sendGatewayPlugHallwayControl(id, nextOn);
-              }
-            : undefined
-        }
-        initialRemotePowerSource={useGatewaySocket ? "gateway-plug" : undefined}
-      />
-    );
   };
 
   return (
@@ -139,7 +44,20 @@ export const HomePage: React.FC = () => {
         </div>
       )}
 
-      <div className="home-page__user-id" id="user-id">{userLabel}</div>
+      <div className="home-page__user-block" id="user-id">
+        <Typography.Title level={4} className="home-page__user-greeting" style={{ margin: 0 }}>
+          Nhà của tôi
+        </Typography.Title>
+        {userPhone ? (
+          <Typography.Text type="secondary" className="home-page__user-phone">
+            {formatPhone(userPhone)}
+          </Typography.Text>
+        ) : (
+          <Typography.Text type="secondary" italic className="home-page__user-phone">
+            Đang đăng nhập…
+          </Typography.Text>
+        )}
+      </div>
       <div className="home-page__tabs">
         <NavLink to="/" end className={({ isActive }) => (isActive ? "active" : undefined)}>
           Smart Home
@@ -201,7 +119,13 @@ export const HomePage: React.FC = () => {
       </div>
 
       <div className="home-page__device-cards">
-        {smartHomeDevices.map((d, i) => renderDeviceRow(d, i))}
+        {smartHomeDevices.map((d, i) => (
+          <SmartHomeDeviceRow
+            key={`${String(d.deviceId ?? d.device?.id?.id ?? `row-${i}`)}-${i}`}
+            device={d}
+            index={i}
+          />
+        ))}
       </div>
       <div className="home-page__edit-wrap">
         <Link to="/edit-room" className="home-page__edit-btn">

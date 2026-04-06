@@ -142,10 +142,7 @@ export const CameraPage: React.FC = () => {
               </div>
               <div className="camera-feed-card__bar">
                 <span className="camera-feed-card__id">{label}</span>
-                <span className="camera-feed-card__status">
-                  <span className="camera-feed-card__dot" />
-                  Trực tuyến
-                </span>
+                <span className="camera-feed-card__status-badge">Trực tuyến</span>
               </div>
             </article>
           );

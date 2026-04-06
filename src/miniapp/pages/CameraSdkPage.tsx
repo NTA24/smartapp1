@@ -44,6 +44,33 @@ type ActionId =
 
 type CameraHealth = "good" | "poor";
 
+const MOCK_EVENTS = [
+  {
+    id: "e1",
+    time: "11:55:39",
+    label: "Phát hiện chuyển động",
+    thumb: CAMERA_THUMBS[0],
+  },
+  {
+    id: "e2",
+    time: "11:22:25",
+    label: "Phát hiện chuyển động",
+    thumb: CAMERA_THUMBS[1],
+  },
+  {
+    id: "e3",
+    time: "11:20:06",
+    label: "Phát hiện chuyển động",
+    thumb: CAMERA_THUMBS[2],
+  },
+  {
+    id: "e4",
+    time: "11:14:49",
+    label: "Phát hiện chuyển động",
+    thumb: CAMERA_THUMBS[0],
+  },
+] as const;
+
 const ACTIONS: { id: ActionId; label: string; icon: React.ReactNode; onGrid?: "always" }[] = [
   { id: "talk", label: "Đàm thoại", icon: <AudioOutlined /> },
   { id: "history", label: "Xem lịch sử", icon: <HistoryOutlined /> },
@@ -184,36 +211,6 @@ export const CameraSdkPage: React.FC = () => {
     addMockAutoHide(setGridHint, 900);
   };
 
-  const events = useMemo(
-    () => [
-      {
-        id: "e1",
-        time: "11:55:39",
-        label: "Phát hiện chuyển động",
-        thumb: CAMERA_THUMBS[0],
-      },
-      {
-        id: "e2",
-        time: "11:22:25",
-        label: "Phát hiện chuyển động",
-        thumb: CAMERA_THUMBS[1],
-      },
-      {
-        id: "e3",
-        time: "11:20:06",
-        label: "Phát hiện chuyển động",
-        thumb: CAMERA_THUMBS[2],
-      },
-      {
-        id: "e4",
-        time: "11:14:49",
-        label: "Phát hiện chuyển động",
-        thumb: CAMERA_THUMBS[0],
-      },
-    ],
-    [],
-  );
-
   return (
     <div className="camera-sdk-page">
       <header className="camera-sdk-page__topbar">
@@ -222,10 +219,10 @@ export const CameraSdkPage: React.FC = () => {
         </button>
         <div className="camera-sdk-page__titleWrap">
           <div className="camera-sdk-page__cameraId">{cameraId || "—"}</div>
-          <div className="camera-sdk-page__healthRow">
-            <ReloadOutlined className="camera-sdk-page__healthIcon" />
-            <span className="camera-sdk-page__healthText">{health === "good" ? "Tín hiệu Tốt" : "Tín hiệu Yếu"}</span>
-          </div>
+          <span className="camera-sdk-page__signalBadge" title={health === "good" ? "Tín hiệu tốt" : "Tín hiệu yếu"}>
+            <ReloadOutlined className="camera-sdk-page__signalBadgeIcon" aria-hidden />
+            {health === "good" ? "Trực tuyến" : "Yếu"}
+          </span>
         </div>
         <button type="button" className="camera-sdk-page__gear" onClick={() => setGridHint("Open settings (mock)")} aria-label="Cài đặt">
           <SettingOutlined />
@@ -299,7 +296,7 @@ export const CameraSdkPage: React.FC = () => {
           <div className="camera-sdk-page__events">
             <div className="camera-sdk-page__panelTitle">Sự kiện</div>
             <div className="camera-sdk-page__eventsList">
-              {events.map((ev) => (
+              {MOCK_EVENTS.map((ev) => (
                 <button key={ev.id} type="button" className="camera-sdk-page__eventItem" onClick={() => {}}>
                   <div className="camera-sdk-page__eventTime">{ev.time}</div>
                   <img className="camera-sdk-page__eventThumb" src={ev.thumb} alt="" loading="lazy" />

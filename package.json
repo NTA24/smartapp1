@@ -13,6 +13,7 @@
   "dependencies": {
     "@ant-design/icons": "^6.1.0",
     "@monaco-editor/react": "^4.7.0",
+    "antd": "^5.29.3",
     "axios": "^1.14.0",
     "dotenv": "^17.3.1",
     "react": "^19.2.4",

@@ -1,6 +1,7 @@
 import React, { useMemo, useRef, useState } from "react";
+import { Typography } from "antd";
 import { Link, useNavigate } from "react-router-dom";
-import { LeftOutlined, RightOutlined } from "@ant-design/icons";
+import { BulbOutlined, FireOutlined, LeftOutlined, ThunderboltOutlined } from "@ant-design/icons";
 import { createAndStoreDevice } from "../services/deviceSync";
 import { useMiniApp } from "../context/MiniAppContext";
 
@@ -16,6 +17,12 @@ const DEVICE_TEMPLATES: DeviceTemplate[] = [
   { key: "light", title: "Đèn thông minh", type: "Light", labelPrefix: "Smart Light" },
   { key: "switch", title: "Công tắc thông minh", type: "Switch", labelPrefix: "Smart Switch" },
 ];
+
+const TEMPLATE_ICONS: Record<string, React.ReactNode> = {
+  temp: <FireOutlined />,
+  light: <BulbOutlined />,
+  switch: <ThunderboltOutlined />,
+};
 
 export const AddDevicePage: React.FC = () => {
   const navigate = useNavigate();
@@ -120,39 +127,24 @@ export const AddDevicePage: React.FC = () => {
             <LeftOutlined />
           </span>
         </Link>
-        <h1 className="add-device-page__title">Thêm thiết bị</h1>
+        <Typography.Title level={4} className="add-device-page__title" style={{ margin: 0, flex: 1 }}>
+          Thêm thiết bị
+        </Typography.Title>
       </div>
 
       <div className="add-device-page__body">
-        <div className="add-device-page__account">
-          Tài khoản: <strong>{username || "Chưa có username từ Tammi"}</strong>
+        <div className="add-device-page__steps" aria-label="Các bước">
+          <span className="add-device-page__step add-device-page__step--on">1. Chọn loại</span>
+          <span className="add-device-page__steps-sep" aria-hidden>
+            →
+          </span>
+          <span className="add-device-page__step">2. Quét / nhập serial</span>
         </div>
 
-        <div className="add-device-page__section">
-          <div className="add-device-page__section-title">Chọn nhanh loại thiết bị</div>
-          <div className="add-device-page__section-desc">Chọn loại, sau đó nhập serial là tạo được.</div>
-          <div className="add-device-page__template-list">
-            {DEVICE_TEMPLATES.map((tpl) => {
-              const active = tpl.key === selectedTemplate.key;
-              return (
-                <button
-                  key={tpl.key}
-                  type="button"
-                  className={`add-device-page__row add-device-page__template-row ${active ? "add-device-page__template-row--active" : ""}`}
-                  onClick={() => applyTemplate(tpl)}
-                >
-                  <div className="add-device-page__row-icon">{active ? "✓" : ""}</div>
-                  <div className="add-device-page__row-text">
-                    <div className="add-device-page__template-title">{tpl.title}</div>
-                    <div className="add-device-page__template-type">{tpl.type}</div>
-                  </div>
-                  <div className="add-device-page__row-arrow">
-                    <RightOutlined />
-                  </div>
-                </button>
-              );
-            })}
-          </div>
+        <div className="add-device-page__account">
+          <Typography.Text type="secondary" className="add-device-page__account-line">
+            Tài khoản: <strong>{username || "Chưa có username từ Tammi"}</strong>
+          </Typography.Text>
         </div>
 
         <form onSubmit={onSubmit} className="add-device-page__section add-device-page__form">
@@ -167,10 +159,36 @@ export const AddDevicePage: React.FC = () => {
           <button
             type="button"
             onClick={() => qrInputRef.current?.click()}
-            className="add-device-page__qr-btn"
+            className="add-device-page__qr-btn add-device-page__qr-btn--primary"
           >
             Quét QR
           </button>
+          <Typography.Paragraph type="secondary" className="add-device-page__qr-hint" style={{ margin: 0 }}>
+            Mở camera để quét mã — nhanh nhất để lấy serial.
+          </Typography.Paragraph>
+
+          <Typography.Title level={5} className="add-device-page__section-title add-device-page__section-title--tight">
+            Loại thiết bị
+          </Typography.Title>
+          <div className="add-device-page__template-grid">
+            {DEVICE_TEMPLATES.map((tpl) => {
+              const active = tpl.key === selectedTemplate.key;
+              return (
+                <button
+                  key={tpl.key}
+                  type="button"
+                  className={`add-device-page__template-card ${active ? "add-device-page__template-card--active" : ""}`}
+                  onClick={() => applyTemplate(tpl)}
+                  aria-pressed={active}
+                >
+                  <span className="add-device-page__template-card-icon">{TEMPLATE_ICONS[tpl.key]}</span>
+                  <span className="add-device-page__template-card-title">{tpl.title}</span>
+                  <span className="add-device-page__template-card-type">{tpl.type}</span>
+                </button>
+              );
+            })}
+          </div>
+
           <div className="add-device-page__serial-group">
             <label className="add-device-page__serial-label">Serial / Mã thiết bị</label>
             <input
@@ -180,9 +198,9 @@ export const AddDevicePage: React.FC = () => {
               className="add-device-page__serial-input"
             />
           </div>
-          <div className="add-device-page__note">
+          <Typography.Paragraph type="secondary" className="add-device-page__note" style={{ margin: 0 }}>
             App sẽ tự tạo payload theo loại bạn đã chọn.
-          </div>
+          </Typography.Paragraph>
 
           <div className="add-device-page__actions">
             <button

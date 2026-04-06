@@ -1,10 +1,12 @@
 import React, { useCallback, useEffect, useState } from "react";
+import { Col, Row } from "antd";
 import { useNavigate } from "react-router-dom";
 import { useDevicePower } from "../hooks/useDevicePower";
 import type { DeviceCardKind } from "../lib/deviceCardKind";
 import type { SmartSwitchChannel } from "../services/deviceSync";
 import { useGatewayPlugStateWithFallback } from "../hooks/useGatewayPlugHttpFallback";
 import { useSmartSwitchStatesWs } from "../lib/tbWebSocket";
+import { TB_UUID_RE } from "../utils/tbDeviceUuid";
 
 const POWER_SVG = (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -42,7 +44,7 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({
   const [powerBusy, setPowerBusy] = useState(false);
   const [channelBusy, setChannelBusy] = useState<SmartSwitchChannel | null>(null);
 
-  const isTbDeviceUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(deviceId.trim());
+  const isTbDeviceUuid = TB_UUID_RE.test(deviceId.trim());
   const quadSwitch = deviceKind === "switch" && isTbDeviceUuid;
   const canPostSwitchChannels = Boolean(onRemoteSwitchChannelChange);
   const kindClass = deviceKind ? `device-card--kind-${deviceKind}` : "";
@@ -130,33 +132,32 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({
           {icon}
         </div>
         {quadSwitch ? (
-          <div
-            className="device-card__sw-grid"
-            role="group"
-            aria-label="Bốn kênh công tắc"
-          >
+          <Row gutter={[8, 8]} className="device-card__sw-grid" role="group" aria-label="Bốn kênh công tắc">
             {([1, 2, 3, 4] as const).map((ch) => {
               const onCh = effectiveChs[ch - 1];
               const busy = channelBusy === ch;
               return (
-                <button
-                  key={ch}
-                  type="button"
-                  className={`power-btn power-btn--channel ${onCh ? "on" : ""}`}
-                  aria-label={onCh ? `Tắt kênh ${ch}` : `Bật kênh ${ch}`}
-                  aria-busy={busy}
-                  disabled={busy || !canPostSwitchChannels}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onChannelToggle(ch);
-                  }}
-                >
-                  <span className="power-symbol">{POWER_SVG}</span>
-                  <span className="power-btn__ch-label">{ch}</span>
-                </button>
+                <Col span={12} key={ch} className="device-card__sw-col">
+                  <div className="power-btn-channel-wrap">
+                    <button
+                      type="button"
+                      className={`power-btn power-btn--channel ${onCh ? "on" : ""}`}
+                      aria-label={onCh ? `Tắt kênh ${ch}` : `Bật kênh ${ch}`}
+                      aria-busy={busy}
+                      disabled={busy || !canPostSwitchChannels}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onChannelToggle(ch);
+                      }}
+                    >
+                      <span className="power-symbol">{POWER_SVG}</span>
+                    </button>
+                    <span className="power-btn__ch-label">{ch}</span>
+                  </div>
+                </Col>
               );
             })}
-          </div>
+          </Row>
         ) : (
           <button
             type="button"

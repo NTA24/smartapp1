@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { Slider } from "antd";
 import { BulbOutlined } from "@ant-design/icons";
 import { useLedStripStatesWs } from "../lib/tbWebSocket";
-import { postDeviceSharedScopeLedColorTemp, postDeviceSharedScopeLedLight } from "../services/deviceControlHttp";
+import { postDeviceSharedScopeLedColorTemp, postDeviceSharedScopeLedLight } from "../services/deviceSync";
 import { fetchDeviceLedStripStates } from "../services/deviceSync";
 
 export interface LedStripCardProps {
@@ -104,17 +105,16 @@ export const LedStripCard: React.FC<LedStripCardProps> = ({ deviceId, title }) =
           <span>Nhiệt độ màu</span>
           <strong className="led-strip-card__slider-value">{displayTemp}</strong>
         </div>
-        <input
-          type="range"
-          className="led-strip-card__range"
+        <Slider
           min={0}
           max={100}
           step={1}
           value={displayTemp}
           disabled={sliderBusy}
+          tooltip={{ formatter: (v) => (v != null ? String(v) : "") }}
+          className="led-strip-card__antd-slider"
           aria-label="Nhiệt độ màu 0–100"
-          onChange={(e) => {
-            const v = Number(e.target.value);
+          onChange={(v) => {
             setLocalTemp(v);
             scheduleColorTemp(v);
           }}
