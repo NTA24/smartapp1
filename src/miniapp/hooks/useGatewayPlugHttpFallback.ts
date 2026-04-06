@@ -3,18 +3,15 @@ import { useGatewayPlugStateWs } from "../lib/tbWebSocket";
 import { fetchDeviceGatewayPlugState } from "../services/deviceSync";
 
 /**
- * Đèn hành lang: đọc WS `state-plug`; GET nếu lâu không có push. Bật/tắt: HTTP `deviceControlHttp.sendGatewayPlugHallwayControl` (không qua WS).
+ * Đèn hành lang: ưu tiên WS `state-plug`; **GET ngay khi mở app** (và khi tab lại) nếu WS chưa có — giống hydrate smart switch.
  */
-export function useGatewayPlugStateWithFallback(
-  deviceId: string | null,
-  delayMs = 1200,
-): {
+export function useGatewayPlugStateWithFallback(deviceId: string | null): {
   live: boolean | undefined;
   refreshFromHttp: () => Promise<void>;
 } {
   const { on: wsState, wsRev } = useGatewayPlugStateWs(deviceId);
   const [httpState, setHttpState] = useState<boolean | undefined>(undefined);
-  /** Snapshot GET sau POST / khi mở lại app — ghi đè WS cho tới khi có push mới (wsRev đổi). */
+  /** Snapshot GET sau POST / khi tab visible — ghi đè tới khi có push WS mới (wsRev đổi). */
   const [manualHttp, setManualHttp] = useState<boolean | undefined>(undefined);
   const wsSeen = useRef(false);
   const lastWsRev = useRef(0);
@@ -40,14 +37,16 @@ export function useGatewayPlugStateWithFallback(
       return;
     }
     setHttpState(undefined);
-    const t = window.setTimeout(() => {
+    let cancelled = false;
+    void fetchDeviceGatewayPlugState(deviceId).then((v) => {
+      if (cancelled || v === null) return;
       if (wsSeen.current) return;
-      void fetchDeviceGatewayPlugState(deviceId).then((v) => {
-        if (v !== null && !wsSeen.current) setHttpState(v);
-      });
-    }, delayMs);
-    return () => window.clearTimeout(t);
-  }, [deviceId, delayMs]);
+      setHttpState(v);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [deviceId]);
 
   const refreshFromHttp = useCallback(async () => {
     if (!deviceId) return;

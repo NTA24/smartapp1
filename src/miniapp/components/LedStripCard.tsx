@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { BulbOutlined } from "@ant-design/icons";
 import { useLedStripStatesWs } from "../lib/tbWebSocket";
 import { postDeviceSharedScopeLedColorTemp, postDeviceSharedScopeLedLight } from "../services/deviceControlHttp";
+import { fetchDeviceLedStripStates } from "../services/deviceSync";
 
 export interface LedStripCardProps {
   deviceId: string;
@@ -16,19 +17,37 @@ export const LedStripCard: React.FC<LedStripCardProps> = ({ deviceId, title }) =
   const [sliderBusy, setSliderBusy] = useState(false);
   const [localTemp, setLocalTemp] = useState<number | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Snapshot GET khi mở app — WS ghi đè khi đã có. */
+  const [httpLed, setHttpLed] = useState<{ on?: boolean; temp?: number }>({});
+  const ledUserTouchedRef = useRef(false);
+
+  useEffect(() => {
+    ledUserTouchedRef.current = false;
+    setHttpLed({});
+    let cancelled = false;
+    void fetchDeviceLedStripStates(deviceId).then((r) => {
+      if (cancelled || !r || ledUserTouchedRef.current) return;
+      setHttpLed({ on: r.lightOn, temp: r.colorTemp });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [deviceId]);
 
   useEffect(() => {
     setLocalTemp(null);
   }, [wsRev, colorTemp]);
 
-  const displayTemp = localTemp !== null ? localTemp : (colorTemp ?? 50);
-  const displayOn = lightOn ?? false;
+  const displayTemp =
+    localTemp !== null ? localTemp : (colorTemp ?? httpLed.temp ?? 50);
+  const displayOn = lightOn ?? httpLed.on ?? false;
 
   const onToggleLight = async () => {
     if (lightBusy) return;
     setLightBusy(true);
     try {
       await postDeviceSharedScopeLedLight(deviceId, !displayOn);
+      ledUserTouchedRef.current = true;
     } finally {
       setLightBusy(false);
     }
@@ -39,6 +58,7 @@ export const LedStripCard: React.FC<LedStripCardProps> = ({ deviceId, title }) =
       setSliderBusy(true);
       try {
         await postDeviceSharedScopeLedColorTemp(deviceId, v);
+        ledUserTouchedRef.current = true;
       } finally {
         setSliderBusy(false);
       }

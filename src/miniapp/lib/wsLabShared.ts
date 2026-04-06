@@ -8,7 +8,22 @@ export function mergeWsDataLayers(msg: Record<string, unknown>): Record<string, 
   push(msg.data);
   const d = msg.data;
   if (d && typeof d === "object" && d !== null) push((d as { data?: unknown }).data);
-  push((msg as { attrSubCmds?: { data?: unknown } }).attrSubCmds?.data);
+
+  const ascRaw = (msg as { attrSubCmds?: unknown }).attrSubCmds;
+  if (Array.isArray(ascRaw)) {
+    for (const part of ascRaw) {
+      if (part && typeof part === "object" && part !== null) {
+        const p = part as Record<string, unknown>;
+        if ("data" in p && p.data !== undefined) push(p.data);
+        else push(part);
+      }
+    }
+  } else if (ascRaw && typeof ascRaw === "object" && ascRaw !== null) {
+    const o = ascRaw as Record<string, unknown>;
+    if ("data" in o) push(o.data);
+  }
+
+  /** TB `latestValues`: key → timestamp — không merge (ghi đè sai giá trị thật trong `data`). */
   return acc;
 }
 

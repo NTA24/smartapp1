@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDevicePower } from "../hooks/useDevicePower";
-import { Store } from "../lib/store";
 import type { DeviceCardKind } from "../lib/deviceCardKind";
 import type { SmartSwitchChannel } from "../services/deviceSync";
 import { useGatewayPlugStateWithFallback } from "../hooks/useGatewayPlugHttpFallback";
@@ -13,17 +12,6 @@ const POWER_SVG = (
   </svg>
 );
 
-const SW_STORE = "deviceSwitchCh:";
-
-function readSwitchChannels(deviceId: string): [boolean, boolean, boolean, boolean] {
-  const read = (i: number) => Store.get(`${SW_STORE}${deviceId}:${i}`, "") === "on";
-  return [read(1), read(2), read(3), read(4)];
-}
-
-function writeSwitchChannel(deviceId: string, channel: SmartSwitchChannel, on: boolean): void {
-  Store.set(`${SW_STORE}${deviceId}:${channel}`, on ? "on" : "off");
-}
-
 interface DeviceCardProps {
   deviceId: string;
   name: string;
@@ -32,11 +20,8 @@ interface DeviceCardProps {
   icon: React.ReactNode;
   defaultOn?: boolean;
   deviceKind?: DeviceCardKind;
-  /** Ổ cắm / đèn hành lang: nút on/off — HTTP POST `cmd-socket` (xem `deviceControlHttp`); WS chỉ đọc `state-plug`. */
   onRemotePowerChange?: (nextOn: boolean) => Promise<void>;
-  /** Smart Switch 4 kênh — POST SHARED_SCOPE `cmd-sw1`…`cmd-sw4` on/off; đọc WS `state-sw*`. */
   onRemoteSwitchChannelChange?: (channel: SmartSwitchChannel, nextOn: boolean) => Promise<void>;
-  /** Đồng bộ trạng thái nút khi mở thẻ (GET attribute). */
   initialRemotePowerSource?: "gateway-plug";
 }
 
@@ -56,42 +41,65 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({
   const navigate = useNavigate();
   const [powerBusy, setPowerBusy] = useState(false);
   const [channelBusy, setChannelBusy] = useState<SmartSwitchChannel | null>(null);
-  /** Trạng thái kênh cục bộ — nguồn ban đầu từ localStorage/HTTP; cập nhật lạc quan khi user click. */
-  const [channelsOn, setChannelsOn] = useState<[boolean, boolean, boolean, boolean]>(() =>
-    readSwitchChannels(deviceId),
-  );
 
-  const quadSwitch = Boolean(onRemoteSwitchChannelChange);
+  const isTbDeviceUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(deviceId.trim());
+  const quadSwitch = deviceKind === "switch" && isTbDeviceUuid;
+  const canPostSwitchChannels = Boolean(onRemoteSwitchChannelChange);
   const kindClass = deviceKind ? `device-card--kind-${deviceKind}` : "";
 
-  /**
-   * WS realtime cho Smart Switch — mỗi kênh subscribe riêng.
-   * Giá trị WS luôn override local state để phản ánh trạng thái thực của thiết bị.
-   */
+  /* ── WS realtime — giống demo HTML: mọi push (state-sw* / cmd-sw*) → 1 tuple ── */
   const swWs = useSmartSwitchStatesWs(quadSwitch ? deviceId : null);
 
   /**
-   * Effective channels: WS override per-channel, fallback về local khi WS chưa có.
-   * Derive trực tiếp — không dùng useEffect để tránh race condition và delay render.
+   * Optimistic overlay: khi user bấm trên app, hiện ngay trạng thái mới
+   * trước khi WS push back. WS push back → xoá optimistic (wsRev đổi).
+   * Giống demo HTML: `updateAttributeState(key, nextChecked)` ngay sau POST.
    */
+  const [optimistic, setOptimistic] = useState<Record<number, boolean>>({});
+  useEffect(() => {
+    setOptimistic({});
+  }, [swWs.wsRev]);
+
+  const wsSlots = [swWs.sw1, swWs.sw2, swWs.sw3, swWs.sw4] as const;
   const effectiveChs: [boolean, boolean, boolean, boolean] = [
-    swWs.sw1 !== undefined ? swWs.sw1 : channelsOn[0],
-    swWs.sw2 !== undefined ? swWs.sw2 : channelsOn[1],
-    swWs.sw3 !== undefined ? swWs.sw3 : channelsOn[2],
-    swWs.sw4 !== undefined ? swWs.sw4 : channelsOn[3],
+    optimistic[0] ?? wsSlots[0] ?? false,
+    optimistic[1] ?? wsSlots[1] ?? false,
+    optimistic[2] ?? wsSlots[2] ?? false,
+    optimistic[3] ?? wsSlots[3] ?? false,
   ];
 
   /**
-   * Gateway plug: WS trực tiếp override giá trị hiển thị.
-   * Không dùng useEffect để tránh race condition HTTP/WS.
+   * Giống demo HTML `saveCommandAttribute(key, checked)`:
+   * 1. Optimistic UI ngay (setOptimistic)
+   * 2. POST SHARED_SCOPE `{ "cmd-sw*": "on"|"off" }`
+   * 3. TB push WS → wsRev đổi → optimistic bị xoá → hiện giá trị WS thật
    */
+  const onChannelToggle = useCallback(
+    (channel: SmartSwitchChannel) => {
+      if (!onRemoteSwitchChannelChange) return;
+      const idx = channel - 1;
+      const nextOn = !effectiveChs[idx];
+      setOptimistic((prev) => ({ ...prev, [idx]: nextOn }));
+      setChannelBusy(channel);
+      void onRemoteSwitchChannelChange(channel, nextOn)
+        .catch(() => {
+          setOptimistic((prev) => {
+            const next = { ...prev };
+            delete next[idx];
+            return next;
+          });
+        })
+        .finally(() => setChannelBusy(null));
+    },
+    [effectiveChs, onRemoteSwitchChannelChange],
+  );
+
+  const onCount = effectiveChs.filter(Boolean).length;
+
+  /* ── Gateway plug (đèn hành lang) — giữ nguyên ── */
   const { live: gatewayPlugLive } = useGatewayPlugStateWithFallback(
     !quadSwitch && initialRemotePowerSource === "gateway-plug" ? deviceId : null,
   );
-
-  /**
-   * Đèn hành lang: lạc quan ngay khi bấm (nút đổi tức thì); WS/HTTP là nguồn đúng sau đó.
-   */
   const [gatewayPlugTapOptimistic, setGatewayPlugTapOptimistic] = useState<boolean | null>(null);
   const isHallwayGateway = !quadSwitch && initialRemotePowerSource === "gateway-plug";
 
@@ -114,31 +122,6 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({
       ? gatewayPlugLive
       : localOn;
 
-  const onChannelToggle = useCallback(
-    (channel: SmartSwitchChannel) => {
-      if (!onRemoteSwitchChannelChange) return;
-      const idx = channel - 1;
-      const nextOn = !effectiveChs[idx];
-      setChannelBusy(channel);
-      void onRemoteSwitchChannelChange(channel, nextOn)
-        .then(() => {
-          setChannelsOn((prev) => {
-            const next = [...prev] as [boolean, boolean, boolean, boolean];
-            next[idx] = nextOn;
-            return next;
-          });
-          writeSwitchChannel(deviceId, channel, nextOn);
-        })
-        .catch(() => {
-          /* API lỗi — giữ UI cũ */
-        })
-        .finally(() => setChannelBusy(null));
-    },
-    [effectiveChs, deviceId, onRemoteSwitchChannelChange],
-  );
-
-  const onCount = effectiveChs.filter(Boolean).length;
-
   return (
     <div
       className={`device-card ${quadSwitch ? "device-card--quad-switch" : ""} ${kindClass}`.trim()}
@@ -156,7 +139,11 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({
           {icon}
         </div>
         {quadSwitch ? (
-          <div className="device-card__sw-grid" role="group" aria-label="Bốn kênh công tắc">
+          <div
+            className="device-card__sw-grid"
+            role="group"
+            aria-label="Bốn kênh công tắc"
+          >
             {([1, 2, 3, 4] as const).map((ch) => {
               const onCh = effectiveChs[ch - 1];
               const busy = channelBusy === ch;
@@ -167,7 +154,7 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({
                   className={`power-btn power-btn--channel ${onCh ? "on" : ""}`}
                   aria-label={onCh ? `Tắt kênh ${ch}` : `Bật kênh ${ch}`}
                   aria-busy={busy}
-                  disabled={busy}
+                  disabled={busy || !canPostSwitchChannels}
                   onClick={(e) => {
                     e.stopPropagation();
                     onChannelToggle(ch);

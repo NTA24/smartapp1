@@ -156,4 +156,18 @@ export function getNewgenWsUseCmdsFormat(): boolean {
   return true;
 }
 
+/** ThingsBoard login — giống demo HTML `login()` → `/api/auth/login`. */
+export function getNewgenTbUsername(): string {
+  return String((import.meta.env as Record<string, unknown>).VITE_NEWGEN_TB_USERNAME ?? "").trim();
+}
+
+export function getNewgenTbPassword(): string {
+  return String((import.meta.env as Record<string, unknown>).VITE_NEWGEN_TB_PASSWORD ?? "").trim();
+}
+
+/** Base URL cho ThingsBoard REST (dùng cho login, attribute, …). */
+export function getNewgenApiBase(): string {
+  return NEWGEN_API_BASE;
+}
+
 export { STORAGE_KEY_APP_ID };

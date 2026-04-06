@@ -515,13 +515,18 @@ export const SMART_SWITCH_STATE_KEYS = ["state-sw1", "state-sw2", "state-sw3", "
 
 export type SmartSwitchChannel = 1 | 2 | 3 | 4;
 
-function parseSwitchStateValue(v: unknown): boolean {
+/** Giống parse on/off WS / demo TB — `undefined` nếu key không có (để merge nhiều scope). */
+function parseSwitchOnOffAttr(v: unknown): boolean | undefined {
+  if (v === undefined || v === null) return undefined;
   if (typeof v === "boolean") return v;
-  const s = String(v ?? "").trim().toLowerCase();
-  return s === "on" || s === "true" || s === "1";
+  const normalized = String(v).trim().toLowerCase();
+  if (!normalized) return undefined;
+  if (["1", "true", "t", "on", "yes"].includes(normalized)) return true;
+  if (["0", "false", "f", "off", "no"].includes(normalized)) return false;
+  return undefined;
 }
 
-function parseAttributesToSwitchTuple(data: unknown): [boolean, boolean, boolean, boolean] | null {
+function attributesResponseToMap(data: unknown): Record<string, unknown> {
   const map: Record<string, unknown> = {};
   if (Array.isArray(data)) {
     for (const row of data) {
@@ -531,100 +536,187 @@ function parseAttributesToSwitchTuple(data: unknown): [boolean, boolean, boolean
       }
     }
   } else if (data && typeof data === "object") {
-    for (const k of SMART_SWITCH_STATE_KEYS) {
-      if (Object.prototype.hasOwnProperty.call(data, k)) {
-        map[k] = (data as Record<string, unknown>)[k];
-      }
-    }
+    Object.assign(map, data as Record<string, unknown>);
   }
-  const anyPresent = SMART_SWITCH_STATE_KEYS.some((k) => map[k] !== undefined);
-  if (!anyPresent) return null;
-  return [
-    parseSwitchStateValue(map["state-sw1"]),
-    parseSwitchStateValue(map["state-sw2"]),
-    parseSwitchStateValue(map["state-sw3"]),
-    parseSwitchStateValue(map["state-sw4"]),
-  ];
+  return map;
 }
 
 /**
- * Đồng bộ trạng thái 4 kênh từ ThingsBoard attributes `state-sw1`…`state-sw4`
- * (cùng logic widget dashboard: GET_ATTRIBUTE).
- * Thử SERVER_SCOPE → SHARED_SCOPE → CLIENT_SCOPE.
+ * GET trạng thái 4 kênh khi mở app — giống flow demo WS:
+ * 1) `state-sw*` trên **CLIENT_SCOPE** (thiết bị báo),
+ * 2) bổ sung chỗ trống bằng **`cmd-sw*` SHARED_SCOPE** (lệnh gần nhất),
+ * 3) cuối cùng thử **SERVER_SCOPE** + `state-sw*`.
+ * Dùng **JWT hoặc ApiKey** (`getNewgenTelemetryReadHeaders`), không chỉ ApiKey.
  */
 export async function fetchDeviceSwitchChannelStates(
   deviceId: string,
 ): Promise<[boolean, boolean, boolean, boolean] | null> {
-  const apiKey = getNewgenSampleDevicesApiKey();
-  if (!apiKey) return null;
-  const keys = [...SMART_SWITCH_STATE_KEYS];
-  const scopes = ["SERVER_SCOPE", "SHARED_SCOPE", "CLIENT_SCOPE"] as const;
-  for (const scope of scopes) {
-    const url = getNewgenDeviceAttributeValuesUrl(deviceId, scope, keys);
-    try {
-      const res = await fetch(url, {
-        method: "GET",
-        headers: {
-          Accept: "application/json",
-          "X-Authorization": `ApiKey ${apiKey}`,
-        },
-      });
-      if (!res.ok) continue;
-      const data: unknown = await res.json().catch(() => null);
-      const tuple = parseAttributesToSwitchTuple(data);
-      if (tuple) {
-        return tuple;
-      }
-    } catch {
-      /* thử scope khác */
+  const headers = getNewgenTelemetryReadHeaders();
+  if (!headers) return null;
+  const id = deviceId.trim();
+  if (!id) return null;
+
+  const acc: [
+    boolean | undefined,
+    boolean | undefined,
+    boolean | undefined,
+    boolean | undefined,
+  ] = [undefined, undefined, undefined, undefined];
+
+  const fillFromMap = (map: Record<string, unknown>, k0: string, k1: string, k2: string, k3: string) => {
+    const t = [
+      parseSwitchOnOffAttr(map[k0]),
+      parseSwitchOnOffAttr(map[k1]),
+      parseSwitchOnOffAttr(map[k2]),
+      parseSwitchOnOffAttr(map[k3]),
+    ] as const;
+    for (let i = 0; i < 4; i++) {
+      if (acc[i] === undefined && t[i] !== undefined) acc[i] = t[i];
     }
-  }
-  return null;
+  };
+
+  const pull = async (scope: "CLIENT_SCOPE" | "SHARED_SCOPE" | "SERVER_SCOPE", keys: readonly string[]) => {
+    if (keys.length !== 4) return;
+    const url = getNewgenDeviceAttributeValuesUrl(id, scope, [...keys]);
+    try {
+      const res = await fetch(url, { method: "GET", headers });
+      if (!res.ok) return;
+      const data: unknown = await res.json().catch(() => null);
+      fillFromMap(attributesResponseToMap(data), keys[0], keys[1], keys[2], keys[3]);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  await pull("CLIENT_SCOPE", SMART_SWITCH_STATE_KEYS);
+  await pull("SHARED_SCOPE", SHARED_SCOPE_CMD_KEYS);
+  await pull("SERVER_SCOPE", SMART_SWITCH_STATE_KEYS);
+
+  if (acc.every((x) => x === undefined)) return null;
+
+  return [acc[0] ?? false, acc[1] ?? false, acc[2] ?? false, acc[3] ?? false];
 }
 
 /** Attribute trạng thái ổ cắm / gateway (widget power_button). */
 export const GATEWAY_PLUG_STATE_KEY = "state-plug";
 
-function extractAttributeValue(data: unknown, key: string): unknown {
-  if (Array.isArray(data)) {
-    for (const row of data) {
-      if (row && typeof row === "object" && "key" in row) {
-        const r = row as { key: string; value: unknown };
-        if (String(r.key) === key) return r.value;
-      }
-    }
-  } else if (data && typeof data === "object" && Object.prototype.hasOwnProperty.call(data, key)) {
-    return (data as Record<string, unknown>)[key];
-  }
-  return undefined;
-}
+/** SHARED lệnh điều khiển đèn hành lang — bổ sung khi `state-plug` chưa có (giống `cmd-sw*` / smart switch). */
+const GATEWAY_PLUG_CMD_SOCKET_KEY = "cmd-socket";
 
 /**
- * Đọc `state-plug` (GET_ATTRIBUTE như dashboard HA gateway / đèn hành lang).
+ * Đọc trạng thái gateway / đèn hành lang — **CLIENT** `state-plug` trước, rồi **SHARED** (`state-plug` + `cmd-socket`), cuối **SERVER** `state-plug`.
  */
 export async function fetchDeviceGatewayPlugState(deviceId: string): Promise<boolean | null> {
   const headers = getNewgenTelemetryReadHeaders();
   if (!headers) return null;
-  const keys = [GATEWAY_PLUG_STATE_KEY];
-  const scopes = ["SERVER_SCOPE", "SHARED_SCOPE", "CLIENT_SCOPE"] as const;
-  for (const scope of scopes) {
-    const url = getNewgenDeviceAttributeValuesUrl(deviceId, scope, keys);
-    try {
-      const res = await fetch(url, {
-        method: "GET",
-        headers,
-      });
-      if (!res.ok) continue;
-      const data: unknown = await res.json().catch(() => null);
-      const v = extractAttributeValue(data, GATEWAY_PLUG_STATE_KEY);
-      if (v !== undefined && v !== null) {
-        return parseSwitchStateValue(v);
+  const id = deviceId.trim();
+  if (!id) return null;
+
+  let resolved: boolean | undefined;
+
+  const tryKeys = (map: Record<string, unknown>, keys: readonly string[]) => {
+    for (const k of keys) {
+      const p = parseSwitchOnOffAttr(map[k]);
+      if (p !== undefined) {
+        resolved = p;
+        return;
       }
-    } catch {
-      /* scope khác */
     }
-  }
-  return null;
+  };
+
+  const pull = async (scope: "CLIENT_SCOPE" | "SHARED_SCOPE" | "SERVER_SCOPE", keys: readonly string[]) => {
+    if (resolved !== undefined) return;
+    const url = getNewgenDeviceAttributeValuesUrl(id, scope, [...keys]);
+    try {
+      const res = await fetch(url, { method: "GET", headers });
+      if (!res.ok) return;
+      const data: unknown = await res.json().catch(() => null);
+      tryKeys(attributesResponseToMap(data), keys);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  await pull("CLIENT_SCOPE", [GATEWAY_PLUG_STATE_KEY]);
+  await pull("SHARED_SCOPE", [GATEWAY_PLUG_STATE_KEY, GATEWAY_PLUG_CMD_SOCKET_KEY]);
+  await pull("SERVER_SCOPE", [GATEWAY_PLUG_STATE_KEY]);
+
+  if (resolved === undefined) return null;
+  return resolved;
+}
+
+/** LED strip — attribute đọc (WS cùng key). */
+export const LED_STATE_LIGHT_ATTR_KEY = "state-light";
+export const LED_COLOR_TEMP_ATTR_KEY = "color-temp-light";
+const LED_CMD_LIGHT_KEY = "cmd-light";
+const LED_CMD_COLOR_TEMP_KEY = "cmd-color-temp-light";
+
+function parseLedLightAttr(v: unknown): boolean | undefined {
+  if (v === undefined || v === null) return undefined;
+  const s = String(v).trim().toLowerCase();
+  if (!s) return undefined;
+  if (["0", "false", "f", "off", "no"].includes(s)) return false;
+  if (["1", "true", "t", "on", "yes"].includes(s)) return true;
+  return undefined;
+}
+
+function parseLedColorTempAttr(v: unknown): number | undefined {
+  if (v === undefined || v === null) return undefined;
+  const n = typeof v === "number" ? v : Number(String(v).trim());
+  if (!Number.isFinite(n)) return undefined;
+  return Math.max(0, Math.min(100, Math.round(n)));
+}
+
+/**
+ * Snapshot ban đầu LED strip — CLIENT `state-light` / `color-temp-light`, bổ sung SHARED (`cmd-light`, `cmd-color-temp-light`), rồi SERVER.
+ */
+export async function fetchDeviceLedStripStates(
+  deviceId: string,
+): Promise<{ lightOn: boolean; colorTemp: number } | null> {
+  const headers = getNewgenTelemetryReadHeaders();
+  if (!headers) return null;
+  const id = deviceId.trim();
+  if (!id) return null;
+
+  let light: boolean | undefined;
+  let temp: number | undefined;
+
+  const fillFromMap = (map: Record<string, unknown>) => {
+    if (light === undefined) {
+      light =
+        parseLedLightAttr(map[LED_STATE_LIGHT_ATTR_KEY]) ??
+        parseLedLightAttr(map[LED_CMD_LIGHT_KEY]);
+    }
+    if (temp === undefined) {
+      temp =
+        parseLedColorTempAttr(map[LED_COLOR_TEMP_ATTR_KEY]) ??
+        parseLedColorTempAttr(map[LED_CMD_COLOR_TEMP_KEY]);
+    }
+  };
+
+  const pull = async (scope: "CLIENT_SCOPE" | "SHARED_SCOPE" | "SERVER_SCOPE", keys: readonly string[]) => {
+    const url = getNewgenDeviceAttributeValuesUrl(id, scope, [...keys]);
+    try {
+      const res = await fetch(url, { method: "GET", headers });
+      if (!res.ok) return;
+      const data: unknown = await res.json().catch(() => null);
+      fillFromMap(attributesResponseToMap(data));
+    } catch {
+      /* ignore */
+    }
+  };
+
+  await pull("CLIENT_SCOPE", [LED_STATE_LIGHT_ATTR_KEY, LED_COLOR_TEMP_ATTR_KEY]);
+  await pull("SHARED_SCOPE", [
+    LED_STATE_LIGHT_ATTR_KEY,
+    LED_COLOR_TEMP_ATTR_KEY,
+    LED_CMD_LIGHT_KEY,
+    LED_CMD_COLOR_TEMP_KEY,
+  ]);
+  await pull("SERVER_SCOPE", [LED_STATE_LIGHT_ATTR_KEY, LED_COLOR_TEMP_ATTR_KEY]);
+
+  if (light === undefined && temp === undefined) return null;
+  return { lightOn: light ?? false, colorTemp: temp ?? 50 };
 }
 
 /**

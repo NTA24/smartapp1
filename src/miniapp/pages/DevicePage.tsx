@@ -1,7 +1,6 @@
-import React, { useEffect } from "react";
+import React from "react";
 import { Link, useParams } from "react-router-dom";
 import { useDevicePower } from "../hooks/useDevicePower";
-import { Store } from "../lib/store";
 import { EllipsisOutlined, BulbOutlined, ClockCircleOutlined, ThunderboltOutlined } from "@ant-design/icons";
 
 const POWER_SVG = (
@@ -12,13 +11,9 @@ const POWER_SVG = (
 
 export const DevicePage: React.FC = () => {
   const { deviceId } = useParams<{ deviceId: string }>();
-  const id: string = deviceId ?? Store.get("currentDeviceId", "1") ?? "1";
+  const id: string = deviceId ?? "1";
   const isLight = id === "2";
   const { on, toggle } = useDevicePower(id, id === "1");
-
-  useEffect(() => {
-    Store.set("currentDeviceId", id);
-  }, [id]);
 
   const title = isLight ? "Đèn thông minh" : "Máy lọc không khí thông minh";
 
