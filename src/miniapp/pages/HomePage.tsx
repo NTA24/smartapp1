@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, NavLink } from "react-router-dom";
 import { MenuOutlined, SettingOutlined, SearchOutlined } from "@ant-design/icons";
 import { DeviceCard } from "../components/DeviceCard";
@@ -7,22 +7,28 @@ import { SmokeSensorCard } from "../components/SmokeSensorCard";
 import { HumanSensorCard } from "../components/HumanSensorCard";
 import { useMiniApp } from "../context/MiniAppContext";
 import { useAuthLoading } from "../hooks/useAuthLoading";
-import {
-  deviceCardIconForKind,
-  deviceCardKindMeta,
-  inferDeviceCardKind,
-} from "../lib/deviceCardKind";
 import type { SmartBuildingDeviceRecord } from "../services/deviceSync";
 import {
   fetchSmartHomeDevicesFromNewgen,
-  isGatewaySocketTelemetryDevice,
-  isHumanSensorTelemetryDevice,
-  isLedStripTelemetryDevice,
-  isSmokeSensorTelemetryDevice,
-  isSmartSwitchTelemetryDevice,
 } from "../services/deviceSync";
-import { sendGatewayPlugHallwayControl } from "../services/deviceControlHttp";
-import { postDeviceSharedScopeSwitchChannel } from "../services/deviceControlHttp";
+import { postDeviceSharedScopeSwitchChannel, sendGatewayPlugHallwayControl } from "../services/deviceControlHttp";
+import { buildDevicePresentationModel } from "../lib/devicePresentation";
+
+function formatPhone(phone: string): string {
+  const raw = String(phone || "").trim();
+  if (!raw) return "";
+
+  let digits = raw.replace(/[^\d]/g, "");
+  if (!digits) return "";
+
+  // Bỏ mã quốc gia lặp để tránh dạng (+84) 84xxxx...
+  while (digits.startsWith("84")) digits = digits.slice(2);
+  // Dữ liệu nội địa thường bắt đầu bằng 0
+  if (digits.startsWith("0")) digits = digits.slice(1);
+  while (digits.startsWith("84")) digits = digits.slice(2);
+
+  return `(+84) ${digits}`;
+}
 
 export const HomePage: React.FC = () => {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -41,22 +47,6 @@ export const HomePage: React.FC = () => {
     void loadSmartHomeDevices();
   }, [loadSmartHomeDevices]);
 
-  const formatPhone = (phone: string) => {
-    const raw = String(phone || "").trim();
-    if (!raw) return "";
-
-    let digits = raw.replace(/[^\d]/g, "");
-    if (!digits) return "";
-
-    // Bỏ mã quốc gia lặp để tránh dạng (+84) 84xxxx...
-    while (digits.startsWith("84")) digits = digits.slice(2);
-    // Dữ liệu nội địa thường bắt đầu bằng 0
-    if (digits.startsWith("0")) digits = digits.slice(1);
-    while (digits.startsWith("84")) digits = digits.slice(2);
-
-    return `(+84) ${digits}`;
-  };
-
   const userLabel = userPhone ? formatPhone(userPhone) : "…";
 
   const handleRefreshDevices = async () => {
@@ -68,69 +58,59 @@ export const HomePage: React.FC = () => {
     }
   };
 
-  const renderDeviceRow = (d: SmartBuildingDeviceRecord, i: number) => {
-    const rawType = String(d.deviceType ?? d.device?.type ?? "Thiết bị");
-    const kind = inferDeviceCardKind(d);
-    const icon = deviceCardIconForKind(kind);
-    const meta = deviceCardKindMeta(kind, rawType);
-    const name =
-      String(d.label ?? d.device?.label ?? d.name ?? d.device?.name ?? "").trim() ||
-      `Thiết bị ${i + 1}`;
-    const id =
-      String(d.deviceId ?? d.device?.id?.id ?? `${i + 1}`).trim() ||
-      `${i + 1}`;
+  const deviceRows = useMemo(
+    () =>
+      smartHomeDevices.map((d: SmartBuildingDeviceRecord, i: number) => {
+        const model = buildDevicePresentationModel(d, i);
+        const {
+          id,
+          name,
+          kind,
+          meta,
+          icon,
+          useNewgenSwitchPower,
+          useSmokeSensor,
+          useHumanSensor,
+          useLedStrip,
+          useGatewaySocket,
+        } = model;
 
-    const isSwitch = isSmartSwitchTelemetryDevice(d);
-    const tbUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
-    const useNewgenSwitchPower = tbUuid && isSwitch;
-    const useSmokeSensor = tbUuid && !isSwitch && isSmokeSensorTelemetryDevice(d);
-    const useHumanSensor = tbUuid && !isSwitch && !useSmokeSensor && isHumanSensorTelemetryDevice(d);
-    const useLedStrip =
-      tbUuid && !isSwitch && !useSmokeSensor && !useHumanSensor && isLedStripTelemetryDevice(d);
-    const useGatewaySocket =
-      tbUuid &&
-      !isSwitch &&
-      !useSmokeSensor &&
-      !useHumanSensor &&
-      !useLedStrip &&
-      isGatewaySocketTelemetryDevice(d);
-
-    if (useSmokeSensor) {
-      return <SmokeSensorCard key={`smoke-${id}`} deviceId={id} title={name} />;
-    }
-    if (useHumanSensor) {
-      return <HumanSensorCard key={`human-${id}`} deviceId={id} title={name} />;
-    }
-    if (useLedStrip) {
-      return <LedStripCard key={`led-${id}`} deviceId={id} title={name} />;
-    }
-
-    return (
-      <DeviceCard
-        key={id}
-        deviceId={id}
-        name={name}
-        meta={meta}
-        statusLabel="Tắt"
-        icon={icon}
-        defaultOn={false}
-        deviceKind={kind}
-        onRemoteSwitchChannelChange={
-          useNewgenSwitchPower
-            ? (channel, nextOn) => postDeviceSharedScopeSwitchChannel(id, channel, nextOn)
-            : undefined
+        if (useSmokeSensor) {
+          return <SmokeSensorCard key={`smoke-${id}`} deviceId={id} title={name} />;
         }
-        onRemotePowerChange={
-          useGatewaySocket
-            ? async (nextOn) => {
-                await sendGatewayPlugHallwayControl(id, nextOn);
-              }
-            : undefined
+        if (useHumanSensor) {
+          return <HumanSensorCard key={`human-${id}`} deviceId={id} title={name} />;
         }
-        initialRemotePowerSource={useGatewaySocket ? "gateway-plug" : undefined}
-      />
-    );
-  };
+        if (useLedStrip) {
+          return <LedStripCard key={`led-${id}`} deviceId={id} title={name} />;
+        }
+
+        return (
+          <DeviceCard
+            key={id}
+            deviceId={id}
+            name={name}
+            meta={meta}
+            statusLabel="Tắt"
+            icon={icon}
+            defaultOn={false}
+            deviceKind={kind}
+            onRemoteSwitchChannelChange={
+              useNewgenSwitchPower
+                ? (channel, nextOn) => postDeviceSharedScopeSwitchChannel(id, channel, nextOn)
+                : undefined
+            }
+            onRemotePowerChange={
+              useGatewaySocket
+                ? (nextOn) => sendGatewayPlugHallwayControl(id, nextOn)
+                : undefined
+            }
+            initialRemotePowerSource={useGatewaySocket ? "gateway-plug" : undefined}
+          />
+        );
+      }),
+    [smartHomeDevices],
+  );
 
   return (
     <div className="home-page">
@@ -203,7 +183,7 @@ export const HomePage: React.FC = () => {
       </div>
 
       <div className="home-page__device-cards">
-        {smartHomeDevices.map((d, i) => renderDeviceRow(d, i))}
+        {deviceRows}
       </div>
       <div className="home-page__edit-wrap">
         <Link to="/edit-room" className="home-page__edit-btn">

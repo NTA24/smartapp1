@@ -248,34 +248,26 @@ function parseEnvDeviceIdList(envKey: string): string[] {
     .filter(Boolean);
 }
 
-/** Nhận diện công tắc (Smart Switch) để gửi telemetry `power` lên Newgen. */
-export function isSmartSwitchTelemetryDevice(d: SmartBuildingDeviceRecord): boolean {
-  const id = String(d.deviceId ?? d.device?.id?.id ?? "").trim();
-  const gatewayIds = parseEnvDeviceIdList("VITE_NEWGEN_GATEWAY_SOCKET_DEVICE_IDS");
-  if (id && gatewayIds.length > 0 && gatewayIds.includes(id)) return false;
+const envDeviceIdSetCache = new Map<string, Set<string>>();
 
-  const envIds = parseEnvDeviceIdList("VITE_NEWGEN_SMART_SWITCH_DEVICE_IDS");
-  if (id && envIds.length > 0 && envIds.includes(id)) return true;
-
-  const n = String(d.label ?? d.name ?? d.device?.label ?? d.device?.name ?? "").toLowerCase();
-  const t = String(d.deviceType ?? d.device?.type ?? "").toLowerCase();
-  return (
-    n.includes("switch") ||
-    n.includes("công tắc") ||
-    n.includes("cong tac") ||
-    t.includes("switch")
-  );
+function getCachedEnvDeviceIdSet(envKey: string): Set<string> {
+  const cached = envDeviceIdSetCache.get(envKey);
+  if (cached) return cached;
+  const parsed = parseEnvDeviceIdList(envKey);
+  const parsedSet = new Set(parsed);
+  envDeviceIdSetCache.set(envKey, parsedSet);
+  return parsedSet;
 }
 
-/**
- * Gateway / Home Assistant plug (dashboard: GET `state-plug`, SET SHARED `cmd-socket`).
- * Nếu thiết bị không khớp tên (ví dụ chỉ là "Đèn X") — thêm UUID vào `VITE_NEWGEN_GATEWAY_SOCKET_DEVICE_IDS`.
- */
-export function isGatewaySocketTelemetryDevice(d: SmartBuildingDeviceRecord): boolean {
-  const id = String(d.deviceId ?? d.device?.id?.id ?? "").trim();
-  const envIds = parseEnvDeviceIdList("VITE_NEWGEN_GATEWAY_SOCKET_DEVICE_IDS");
-  if (id && envIds.length > 0 && envIds.includes(id)) return true;
+function getDeviceId(d: SmartBuildingDeviceRecord): string {
+  return String(d.deviceId ?? d.device?.id?.id ?? "").trim();
+}
 
+const deviceSearchTextCache = new WeakMap<SmartBuildingDeviceRecord, string>();
+
+function getDeviceSearchText(d: SmartBuildingDeviceRecord): string {
+  const cached = deviceSearchTextCache.get(d);
+  if (cached !== undefined) return cached;
   const t = [
     d.label,
     d.name,
@@ -286,6 +278,37 @@ export function isGatewaySocketTelemetryDevice(d: SmartBuildingDeviceRecord): bo
   ]
     .map((x) => String(x ?? "").toLowerCase())
     .join(" ");
+  deviceSearchTextCache.set(d, t);
+  return t;
+}
+
+/** Nhận diện công tắc (Smart Switch) để gửi telemetry `power` lên Newgen. */
+export function isSmartSwitchTelemetryDevice(d: SmartBuildingDeviceRecord): boolean {
+  const id = getDeviceId(d);
+  const gatewayIds = getCachedEnvDeviceIdSet("VITE_NEWGEN_GATEWAY_SOCKET_DEVICE_IDS");
+  if (id && gatewayIds.size > 0 && gatewayIds.has(id)) return false;
+
+  const envIds = getCachedEnvDeviceIdSet("VITE_NEWGEN_SMART_SWITCH_DEVICE_IDS");
+  if (id && envIds.size > 0 && envIds.has(id)) return true;
+
+  const t = getDeviceSearchText(d);
+  return (
+    t.includes("switch") ||
+    t.includes("công tắc") ||
+    t.includes("cong tac")
+  );
+}
+
+/**
+ * Gateway / Home Assistant plug (dashboard: GET `state-plug`, SET SHARED `cmd-socket`).
+ * Nếu thiết bị không khớp tên (ví dụ chỉ là "Đèn X") — thêm UUID vào `VITE_NEWGEN_GATEWAY_SOCKET_DEVICE_IDS`.
+ */
+export function isGatewaySocketTelemetryDevice(d: SmartBuildingDeviceRecord): boolean {
+  const id = getDeviceId(d);
+  const envIds = getCachedEnvDeviceIdSet("VITE_NEWGEN_GATEWAY_SOCKET_DEVICE_IDS");
+  if (id && envIds.size > 0 && envIds.has(id)) return true;
+
+  const t = getDeviceSearchText(d);
   if (
     /\b(gateway|hub|bridge|coordinator|zigbee|mqtt broker|điều khiển trung tâm)\b/.test(t)
   ) {
@@ -314,20 +337,11 @@ export function isGatewaySocketTelemetryDevice(d: SmartBuildingDeviceRecord): bo
 /** LED strip / đèn dải — WS `state-light` + `color-temp-light`; POST SHARED `cmd-light` + `cmd-color-temp-light`. */
 export function isLedStripTelemetryDevice(d: SmartBuildingDeviceRecord): boolean {
   if (isSmartSwitchTelemetryDevice(d)) return false;
-  const id = String(d.deviceId ?? d.device?.id?.id ?? "").trim();
-  const envIds = parseEnvDeviceIdList("VITE_NEWGEN_LED_STRIP_DEVICE_IDS");
-  if (id && envIds.length > 0 && envIds.includes(id)) return true;
+  const id = getDeviceId(d);
+  const envIds = getCachedEnvDeviceIdSet("VITE_NEWGEN_LED_STRIP_DEVICE_IDS");
+  if (id && envIds.size > 0 && envIds.has(id)) return true;
 
-  const t = [
-    d.label,
-    d.name,
-    d.device?.label,
-    d.device?.name,
-    d.deviceType,
-    d.device?.type,
-  ]
-    .map((x) => String(x ?? "").toLowerCase())
-    .join(" ");
+  const t = getDeviceSearchText(d);
   return (
     /led\s*strip|strip\s*led|dải\s*led|dai\s*led|rgb\s*strip|đèn\s*dải|den\s*dai|dây\s*led|day\s*led/.test(t) ||
     (/color[\s-]*temp|nhiệt\s*độ\s*màu|nhiet\s*do\s*mau/.test(t) && /\bled\b|đèn|den/.test(t))
@@ -336,39 +350,21 @@ export function isLedStripTelemetryDevice(d: SmartBuildingDeviceRecord): boolean
 
 /** Cảm biến khói — timeseries `smokeDetected` (status_widget). */
 export function isSmokeSensorTelemetryDevice(d: SmartBuildingDeviceRecord): boolean {
-  const id = String(d.deviceId ?? d.device?.id?.id ?? "").trim();
-  const envIds = parseEnvDeviceIdList("VITE_NEWGEN_SMOKE_SENSOR_DEVICE_IDS");
-  if (id && envIds.length > 0 && envIds.includes(id)) return true;
+  const id = getDeviceId(d);
+  const envIds = getCachedEnvDeviceIdSet("VITE_NEWGEN_SMOKE_SENSOR_DEVICE_IDS");
+  if (id && envIds.size > 0 && envIds.has(id)) return true;
 
-  const t = [
-    d.label,
-    d.name,
-    d.device?.label,
-    d.device?.name,
-    d.deviceType,
-    d.device?.type,
-  ]
-    .map((x) => String(x ?? "").toLowerCase())
-    .join(" ");
+  const t = getDeviceSearchText(d);
   return /\bsmoke\b|\bkhói\b|\bkhoi\b|cảm biến khói|cam bien khoi|smoke sensor|báo khói|bao khoi/.test(t);
 }
 
 /** Cảm biến người (PIR/human presence) — timeseries `human_sensor`. */
 export function isHumanSensorTelemetryDevice(d: SmartBuildingDeviceRecord): boolean {
-  const id = String(d.deviceId ?? d.device?.id?.id ?? "").trim();
-  const envIds = parseEnvDeviceIdList("VITE_NEWGEN_HUMAN_SENSOR_DEVICE_IDS");
-  if (id && envIds.length > 0 && envIds.includes(id)) return true;
+  const id = getDeviceId(d);
+  const envIds = getCachedEnvDeviceIdSet("VITE_NEWGEN_HUMAN_SENSOR_DEVICE_IDS");
+  if (id && envIds.size > 0 && envIds.has(id)) return true;
 
-  const t = [
-    d.label,
-    d.name,
-    d.device?.label,
-    d.device?.name,
-    d.deviceType,
-    d.device?.type,
-  ]
-    .map((x) => String(x ?? "").toLowerCase())
-    .join(" ");
+  const t = getDeviceSearchText(d);
   return /\bhuman\b|\bpir\b|\bpresence\b|\bngười\b|\bperson\b|human sensor|cảm biến người|cam bien nguoi/.test(t);
 }
 
@@ -426,22 +422,30 @@ function latestTimeseriesValue(
 
   const first = series[0];
   if (Array.isArray(first) && first.length >= 2 && typeof first[0] === "number") {
-    const rows = series.filter(
-      (p): p is [number, unknown] =>
-        Array.isArray(p) && p.length >= 2 && typeof p[0] === "number",
-    );
-    if (rows.length === 0) return undefined;
-    rows.sort((a, b) => b[0] - a[0]);
-    return rows[0][1];
+    let maxTs = Number.NEGATIVE_INFINITY;
+    let latest: unknown = undefined;
+    for (const row of series) {
+      if (!Array.isArray(row) || row.length < 2 || typeof row[0] !== "number") continue;
+      if (row[0] > maxTs) {
+        maxTs = row[0];
+        latest = row[1];
+      }
+    }
+    return latest;
   }
 
-  const points = series.filter(
-    (p): p is { ts?: number; value?: unknown } =>
-      p !== null && typeof p === "object" && !Array.isArray(p) && "value" in p,
-  );
-  if (points.length === 0) return undefined;
-  points.sort((a, b) => (b.ts ?? 0) - (a.ts ?? 0));
-  return points[0].value;
+  let maxTs = Number.NEGATIVE_INFINITY;
+  let latest: unknown = undefined;
+  for (const point of series) {
+    if (point === null || typeof point !== "object" || Array.isArray(point) || !("value" in point)) continue;
+    const typed = point as { ts?: number; value?: unknown };
+    const ts = typeof typed.ts === "number" ? typed.ts : 0;
+    if (ts > maxTs) {
+      maxTs = ts;
+      latest = typed.value;
+    }
+  }
+  return latest;
 }
 
 /**
@@ -826,4 +830,3 @@ export async function createAndStoreDevice(
   const created = await createDeviceInNewGen(newGenRequestBody);
   return saveDeviceToSmartBuilding(username, created);
 }
-

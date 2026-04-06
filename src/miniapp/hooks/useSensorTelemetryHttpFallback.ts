@@ -14,7 +14,12 @@ export function useSensorTelemetryHttpFallback(
   const [httpAlarm, setHttpAlarm] = useState<boolean | undefined>(undefined);
   /** Luôn = wsState mới nhất — dùng trong callback async để không áp HTTP nếu WS đã có. */
   const wsRef = useRef<boolean | undefined>(undefined);
+  const fetchLatestRef = useRef(fetchLatest);
   wsRef.current = wsState;
+
+  useEffect(() => {
+    fetchLatestRef.current = fetchLatest;
+  }, [fetchLatest]);
 
   useEffect(() => {
     if (wsState !== undefined) setHttpAlarm(undefined);
@@ -25,15 +30,19 @@ export function useSensorTelemetryHttpFallback(
       setHttpAlarm(undefined);
       return;
     }
+    let cancelled = false;
     setHttpAlarm(undefined);
     const t = window.setTimeout(() => {
       if (wsRef.current !== undefined) return;
-      void fetchLatest(deviceId).then((v) => {
-        if (v !== null && wsRef.current === undefined) setHttpAlarm(v);
+      void fetchLatestRef.current(deviceId).then((v) => {
+        if (!cancelled && v !== null && wsRef.current === undefined) setHttpAlarm(v);
       });
     }, delayMs);
-    return () => window.clearTimeout(t);
-  }, [deviceId, delayMs, fetchLatest]);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(t);
+    };
+  }, [deviceId, delayMs]);
 
   if (wsState !== undefined) return wsState;
   return httpAlarm;

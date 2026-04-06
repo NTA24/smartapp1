@@ -18,10 +18,18 @@ export function useGatewayPlugStateWithFallback(
   const [manualHttp, setManualHttp] = useState<boolean | undefined>(undefined);
   const wsSeen = useRef(false);
   const lastWsRev = useRef(0);
+  const mountedRef = useRef(true);
 
   useEffect(() => {
     lastWsRev.current = 0;
   }, [deviceId]);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     wsSeen.current = wsState !== undefined;
@@ -39,20 +47,24 @@ export function useGatewayPlugStateWithFallback(
       setHttpState(undefined);
       return;
     }
+    let cancelled = false;
     setHttpState(undefined);
     const t = window.setTimeout(() => {
       if (wsSeen.current) return;
       void fetchDeviceGatewayPlugState(deviceId).then((v) => {
-        if (v !== null && !wsSeen.current) setHttpState(v);
+        if (!cancelled && v !== null && !wsSeen.current && mountedRef.current) setHttpState(v);
       });
     }, delayMs);
-    return () => window.clearTimeout(t);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(t);
+    };
   }, [deviceId, delayMs]);
 
   const refreshFromHttp = useCallback(async () => {
     if (!deviceId) return;
     const v = await fetchDeviceGatewayPlugState(deviceId);
-    if (v !== null) setManualHttp(v);
+    if (v !== null && mountedRef.current) setManualHttp(v);
   }, [deviceId]);
 
   useEffect(() => {
