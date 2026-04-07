@@ -17,7 +17,8 @@ export const BottomNav: React.FC = () => {
 
   if (pathname.startsWith("/zyapp/camera/")) return null;
 
-  const currentPage = pathname === "/" ? "home" : pathname.split("/")[1] || "home";
+  const currentPage =
+    pathname === "/" || pathname === "/shared" ? "home" : pathname.split("/")[1] || "home";
 
   const onZyappNavClick = useCallback(() => {
     const traceId = `camera-flow-${Date.now()}`;

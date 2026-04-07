@@ -3,7 +3,9 @@ import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import { MiniAppProvider } from "./context/MiniAppContext";
 import { StatusBar } from "./components/StatusBar";
 import { BottomNav } from "./components/BottomNav";
+import { HomeLayout } from "./pages/HomeLayout";
 import { HomePage } from "./pages/HomePage";
+import { SharedTabPage } from "./pages/SharedTabPage";
 import { CameraPage } from "./pages/CameraPage";
 import { MultiCameraViewPage } from "./pages/MultiCameraViewPage";
 import { CameraSdkPage } from "./pages/CameraSdkPage";
@@ -15,15 +17,12 @@ import { AddDevicePage } from "./pages/AddDevicePage";
 import { MyDevicesPage } from "./pages/MyDevicesPage";
 import { WsHumanSensorLabPage } from "./pages/WsHumanSensorLabPage";
 import { WsHallwayPlugLabPage } from "./pages/WsHallwayPlugLabPage";
-import { MiniAppLogPanel } from "./components/MiniAppLogPanel";
-
 type PlaceholderRoute = { path: string; title: string; backTo: string };
 
 const PLACEHOLDER_ROUTES: PlaceholderRoute[] = [
   { path: "/device/:deviceId/timer/add", title: "Thêm hẹn giờ", backTo: "/" },
   { path: "/device/:deviceId/timer/add/action", title: "Hành động hẹn giờ", backTo: "/" },
   { path: "/device/:deviceId/automation", title: "Tự động hóa", backTo: "/" },
-  { path: "/shared", title: "Đã chia sẻ", backTo: "/" },
   { path: "/store", title: "Cửa hàng", backTo: "/" },
   { path: "/automation", title: "Tự động", backTo: "/" },
   { path: "/automation/log", title: "Nhật ký", backTo: "/automation" },
@@ -49,7 +48,6 @@ function Layout({ children }: { children: React.ReactNode }) {
       <StatusBar />
       <main id="main-content">{children}</main>
       <BottomNav />
-      <MiniAppLogPanel />
     </div>
   );
 }
@@ -60,7 +58,10 @@ export default function App() {
       <HashRouter>
         <Layout>
           <Routes>
-            <Route path="/" element={<HomePage />} />
+            <Route path="/" element={<HomeLayout />}>
+              <Route index element={<HomePage />} />
+              <Route path="shared" element={<SharedTabPage />} />
+            </Route>
             <Route path="/zyapp" element={<CameraPage />} />
             <Route path="/zyapp/multi-view" element={<MultiCameraViewPage />} />
             <Route path="/zyapp/camera/:cameraId" element={<CameraSdkPage />} />

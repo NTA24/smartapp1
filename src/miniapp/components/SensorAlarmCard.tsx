@@ -1,4 +1,5 @@
 import React from "react";
+import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 
 export interface SensorAlarmCardProps {
@@ -49,13 +50,15 @@ export const SensorAlarmCard: React.FC<SensorAlarmCardProps> = ({
   const humanRedAlarm = alarmTheme === "human" && bannerTone === "alarm";
 
   return (
-    <article
+    <motion.article
       className={`smoke-sensor-card${alarmTheme === "human" ? " smoke-sensor-card--human" : ""}`.trim()}
       data-device-id={deviceId}
       data-ws-rev={wsRev ?? undefined}
       data-presence={!loaded ? "loading" : wsState ? "detected" : "cleared"}
       role="button"
       tabIndex={0}
+      layout
+      transition={{ layout: { duration: 0.35, ease: [0.25, 0.1, 0.25, 1] } }}
       onClick={() => navigate(`/device/${deviceId}`)}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") navigate(`/device/${deviceId}`);
@@ -65,10 +68,14 @@ export const SensorAlarmCard: React.FC<SensorAlarmCardProps> = ({
       }`}
     >
       <div className="smoke-sensor-card__title-line">{title}</div>
-      <div
+      <motion.div
         className={`smoke-sensor-card__banner smoke-sensor-card__banner--${bannerTone}${
           humanRedAlarm ? " smoke-sensor-card__banner--alarm-human" : ""
         }`.trim()}
+        layout
+        initial={false}
+        animate={{ opacity: 1 }}
+        transition={{ backgroundColor: { duration: 0.45 }, opacity: { duration: 0.2 } }}
       >
         {!loaded ? (
           <div className="smoke-sensor-card__loading">Đang chờ WebSocket…</div>
@@ -84,7 +91,7 @@ export const SensorAlarmCard: React.FC<SensorAlarmCardProps> = ({
             </div>
           </>
         )}
-      </div>
-    </article>
+      </motion.div>
+    </motion.article>
   );
 };

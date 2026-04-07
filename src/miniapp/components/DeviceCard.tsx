@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Col, Row } from "antd";
+import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useDevicePower } from "../hooks/useDevicePower";
 import type { DeviceCardKind } from "../lib/deviceCardKind";
@@ -116,10 +117,12 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({
       : localOn;
 
   return (
-    <div
+    <motion.div
       className={`device-card ${quadSwitch ? "device-card--quad-switch" : ""} ${kindClass}`.trim()}
       data-device-id={deviceId}
       data-device-kind={deviceKind ?? undefined}
+      layout
+      transition={{ layout: { duration: 0.35 } }}
       onClick={(e) => {
         const target = e.target;
         if (!(target instanceof Element)) return;
@@ -139,19 +142,21 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({
               return (
                 <Col span={12} key={ch} className="device-card__sw-col">
                   <div className="power-btn-channel-wrap">
-                    <button
-                      type="button"
-                      className={`power-btn power-btn--channel ${onCh ? "on" : ""}`}
-                      aria-label={onCh ? `Tắt kênh ${ch}` : `Bật kênh ${ch}`}
-                      aria-busy={busy}
-                      disabled={busy || !canPostSwitchChannels}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onChannelToggle(ch);
-                      }}
-                    >
-                      <span className="power-symbol">{POWER_SVG}</span>
-                    </button>
+                  <motion.button
+                    type="button"
+                    className={`power-btn power-btn--channel ${onCh ? "on" : ""}`}
+                    aria-label={onCh ? `Tắt kênh ${ch}` : `Bật kênh ${ch}`}
+                    aria-busy={busy}
+                    disabled={busy || !canPostSwitchChannels}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onChannelToggle(ch);
+                    }}
+                    whileTap={{ scale: 0.94 }}
+                    transition={{ type: "spring", stiffness: 500, damping: 28 }}
+                  >
+                    <span className="power-symbol">{POWER_SVG}</span>
+                  </motion.button>
                     <span className="power-btn__ch-label">{ch}</span>
                   </div>
                 </Col>
@@ -159,7 +164,7 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({
             })}
           </Row>
         ) : (
-          <button
+          <motion.button
             type="button"
             className={`power-btn ${on ? "on" : ""} ${isHallwayGateway && on === undefined && !powerBusy ? "power-btn--ws-pending" : ""}`.trim()}
             data-state-plug={isHallwayGateway ? (on === undefined ? "pending" : on ? "on" : "off") : undefined}
@@ -190,9 +195,11 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({
                 setPower(next);
               }
             }}
+            whileTap={{ scale: 0.94 }}
+            transition={{ type: "spring", stiffness: 500, damping: 28 }}
           >
             <span className="power-symbol">{POWER_SVG}</span>
-          </button>
+          </motion.button>
         )}
       </div>
       <div className="device-name">{name}</div>
@@ -208,6 +215,6 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({
                 : "Tắt"}
         </span>
       </div>
-    </div>
+    </motion.div>
   );
 };

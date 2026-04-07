@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { Slider } from "antd";
-import { BulbOutlined } from "@ant-design/icons";
+import { BulbOutlined, DownOutlined } from "@ant-design/icons";
 import { useLedStripStatesWs } from "../lib/tbWebSocket";
 import { postDeviceSharedScopeLedColorTemp, postDeviceSharedScopeLedLight } from "../services/deviceSync";
 import { fetchDeviceLedStripStates } from "../services/deviceSync";
@@ -21,6 +22,7 @@ export const LedStripCard: React.FC<LedStripCardProps> = ({ deviceId, title }) =
   
   const [httpLed, setHttpLed] = useState<{ on?: boolean; temp?: number }>({});
   const ledUserTouchedRef = useRef(false);
+  const [moreOpen, setMoreOpen] = useState(false);
 
   useEffect(() => {
     ledUserTouchedRef.current = false;
@@ -139,6 +141,34 @@ export const LedStripCard: React.FC<LedStripCardProps> = ({ deviceId, title }) =
           <span className="led-strip-card__switch-knob" />
         </button>
       </div>
+
+      <button
+        type="button"
+        className="led-strip-card__more-toggle"
+        aria-expanded={moreOpen}
+        onClick={() => setMoreOpen((v) => !v)}
+      >
+        <span>Tùy chọn thêm</span>
+        <motion.span animate={{ rotate: moreOpen ? 180 : 0 }} transition={{ duration: 0.25 }}>
+          <DownOutlined />
+        </motion.span>
+      </button>
+      <AnimatePresence initial={false}>
+        {moreOpen && (
+          <motion.div
+            className="led-strip-card__more-panel"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.32, ease: [0.4, 0, 0.2, 1] }}
+            style={{ overflow: "hidden" }}
+          >
+            <p className="led-strip-card__more-text">
+              Gợi ý: nhóm cảnh, hẹn giờ sáng, đồng bộ với cảm biến — sẽ kết nối khi bạn mở rộng tính năng.
+            </p>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

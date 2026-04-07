@@ -22,6 +22,8 @@ import {
   UserOutlined,
 } from "@ant-design/icons";
 import { LeftOutlined } from "@ant-design/icons";
+import { useMiniApp } from "../context/MiniAppContext";
+import { runMakeCallFromCameraFlow } from "../utils/cameraFlow";
 const CAMERA_THUMBS = [
   "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&q=80&auto=format&fit=crop",
   "https://images.unsplash.com/photo-1497366216548-37526070297c?w=600&q=80&auto=format&fit=crop",
@@ -121,6 +123,7 @@ export const CameraSdkPage: React.FC = () => {
   const navigate = useNavigate();
   const params = useParams<{ cameraId: string }>();
   const cameraId = params.cameraId ?? "";
+  const { cameraToken } = useMiniApp();
 
   const health = useMemo(() => inferHealth(cameraId), [cameraId]);
   const [gridHint, setGridHint] = useState<string>("");
@@ -211,10 +214,22 @@ export const CameraSdkPage: React.FC = () => {
     addMockAutoHide(setGridHint, 900);
   };
 
+  const onBackFromSdk = async () => {
+    const token = String(cameraToken ?? "").trim();
+    const uid = String(cameraId ?? "").trim();
+    // Khi tắt SDK: gọi lại API camera trước rồi mới quay ra.
+    if (token && uid) {
+      try {
+        await runMakeCallFromCameraFlow(token, [uid], "camera-sdk-back", "LIVE");
+      } catch {}
+    }
+    navigate(-1);
+  };
+
   return (
     <div className="camera-sdk-page">
       <header className="camera-sdk-page__topbar">
-        <button type="button" className="camera-sdk-page__back" onClick={() => navigate(-1)} aria-label="Quay lại">
+        <button type="button" className="camera-sdk-page__back" onClick={() => void onBackFromSdk()} aria-label="Quay lại">
           <LeftOutlined />
         </button>
         <div className="camera-sdk-page__titleWrap">

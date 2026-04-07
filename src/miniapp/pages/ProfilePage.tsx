@@ -121,29 +121,32 @@ export const ProfilePage: React.FC = () => {
         <span className="profile-page__list-text">Cài đặt khác</span>
         <span className="profile-page__list-arrow">›</span>
       </Link>
-      <div className="profile-page__card-block profile-page__help-card">
-        <Link to="/help" className="profile-page__list-item profile-page__help-item">
-          <div className="profile-page__list-icon profile-page__list-icon--blue">
-            <MessageOutlined />
-          </div>
-          <span className="profile-page__list-text">Trợ giúp và phản hồi</span>
-          <span className="profile-page__list-arrow">›</span>
-        </Link>
-        {import.meta.env.DEV && (
-          <>
-            <Link to="/dev/ws-human" className="profile-page__list-item profile-page__help-item">
-              <div className="profile-page__list-icon profile-page__list-icon--gray">⌗</div>
-              <span className="profile-page__list-text">Lab WS human_sensor (dev)</span>
-              <span className="profile-page__list-arrow">›</span>
-            </Link>
-            <Link to="/dev/ws-plug" className="profile-page__list-item profile-page__help-item">
-              <div className="profile-page__list-icon profile-page__list-icon--gray">⌗</div>
-              <span className="profile-page__list-text">Lab WS đèn hành lang (state-plug)</span>
-              <span className="profile-page__list-arrow">›</span>
-            </Link>
-          </>
-        )}
-      </div>
+
+      <Link to="/help" className="profile-page__list-item profile-page__list-item--help">
+        <div className="profile-page__list-icon profile-page__list-icon--help">
+          <MessageOutlined />
+        </div>
+        <span className="profile-page__list-text profile-page__list-text--stack">
+          <span className="profile-page__list-text-primary">Trợ giúp & phản hồi</span>
+          <span className="profile-page__list-text-sub">Câu hỏi thường gặp, gửi ý kiến</span>
+        </span>
+        <span className="profile-page__list-arrow">›</span>
+      </Link>
+
+      {import.meta.env.DEV && (
+        <>
+          <Link to="/dev/ws-human" className="profile-page__list-item profile-page__list-item--dev">
+            <div className="profile-page__list-icon profile-page__list-icon--gray">⌗</div>
+            <span className="profile-page__list-text">Lab WS human_sensor (dev)</span>
+            <span className="profile-page__list-arrow">›</span>
+          </Link>
+          <Link to="/dev/ws-plug" className="profile-page__list-item profile-page__list-item--dev">
+            <div className="profile-page__list-icon profile-page__list-icon--gray">⌗</div>
+            <span className="profile-page__list-text">Lab WS đèn hành lang (state-plug)</span>
+            <span className="profile-page__list-arrow">›</span>
+          </Link>
+        </>
+      )}
     </div>
   );
 };
