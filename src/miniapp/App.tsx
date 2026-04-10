@@ -17,6 +17,7 @@ import { AddDevicePage } from "./pages/AddDevicePage";
 import { MyDevicesPage } from "./pages/MyDevicesPage";
 import { WsHumanSensorLabPage } from "./pages/WsHumanSensorLabPage";
 import { WsHallwayPlugLabPage } from "./pages/WsHallwayPlugLabPage";
+import { MiniAppLogPanel } from "./components/MiniAppLogPanel";
 type PlaceholderRoute = { path: string; title: string; backTo: string };
 
 const PLACEHOLDER_ROUTES: PlaceholderRoute[] = [
@@ -48,6 +49,7 @@ function Layout({ children }: { children: React.ReactNode }) {
       <StatusBar />
       <main id="main-content">{children}</main>
       <BottomNav />
+      <MiniAppLogPanel />
     </div>
   );
 }

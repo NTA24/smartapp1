@@ -1,4 +1,17 @@
 import { USER_INFO_URL } from "../../miniapp/lib/config";
+import { addLog } from "../../miniapp/lib/debugLog";
+
+const USER_INFO_LOG_MAX = 14_000;
+
+function jsonForUserInfoDebugLog(value: unknown, max = USER_INFO_LOG_MAX): string {
+  try {
+    const s = JSON.stringify(value);
+    if (s.length <= max) return s;
+    return `${s.slice(0, max)}…(truncated, ${s.length} chars)`;
+  } catch {
+    return String(value);
+  }
+}
 
 export interface UserInfoResponse {
   username?: string;
@@ -69,22 +82,32 @@ export function getPhoneFromUserInfo(data: UserInfoResponse): string {
 }
 
 export async function getUserInfoByAuthCode(authCode: string): Promise<UserInfoResponse> {
-  const res = await fetch(USER_INFO_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-    },
-    body: JSON.stringify({ authCode }),
-  });
+  let res: Response;
+  try {
+    res = await fetch(USER_INFO_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({ authCode }),
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    addLog("[userinfo]", "error:network", msg);
+    throw e;
+  }
 
   let data: unknown = null;
   try {
     data = await res.json();
   } catch {}
 
+  addLog("[userinfo]", "response", jsonForUserInfoDebugLog(data));
+
   if (!res.ok) {
     const msg = pickErrorMessage(data) || `HTTP ${res.status}`;
+    addLog("[userinfo]", "error:http", res.status, msg);
     throw new Error(msg);
   }
 

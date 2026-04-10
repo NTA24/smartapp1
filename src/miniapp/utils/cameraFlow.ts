@@ -1,6 +1,16 @@
 import { CAMERA_FLOW_TRACE_KEY } from "../lib/storageKeys";
 import { isWindVaneReady, onWindVaneReady } from "../services/auth";
 
+/** MiniAppContext lắng nghe để gọi lại API danh sách thiết bị sau khi thoát màn native (SDK). */
+export const MINIAPP_DEVICES_REFRESH_EVENT = "miniapp-devices-refresh";
+
+function requestMiniAppDeviceListRefresh(reason: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.dispatchEvent(new CustomEvent(MINIAPP_DEVICES_REFRESH_EVENT, { detail: { reason } }));
+  } catch {}
+}
+
 export function updateCameraFlowTrace(patch: Record<string, unknown>): void {
   try {
     const prevRaw = sessionStorage.getItem(CAMERA_FLOW_TRACE_KEY);
@@ -21,7 +31,7 @@ function getErrorMessage(err: unknown): string {
   return JSON.stringify(err ?? {});
 }
 
-export type CameraTypeView = "LIVE" | "MULTIVIEW";
+export type CameraTypeView = "LIVE" | "MULTIVIEW" | "ADDDEVICES";
 
 export function callMakeCallFromCamera(
   token: string,
@@ -55,6 +65,8 @@ export function callMakeCallFromCamera(
         reject(new Error(msg || "makeCallFromCamera failed"));
       },
     );
+  }).finally(() => {
+    requestMiniAppDeviceListRefresh("makeCallFromCamera:settled");
   });
 }
 
@@ -65,6 +77,7 @@ export async function runMakeCallFromCameraFlow(
   source: string,
   typeView: CameraTypeView = "LIVE",
 ): Promise<void> {
+  /* ADDDEVICES: luồng thêm thiết bị — thường gọi với cameraUIDs rỗng, native xử lý QR / nhập tay */
   const t = String(token ?? "").trim();
   if (!t) throw new Error("Chưa có cameraToken. Hãy đăng nhập lại.");
 

@@ -776,10 +776,21 @@ button.notification-dropdown-item--button .notification-dropdown-item__text {
 
 .camera-page__header {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 14px;
+  gap: 14px;
+  margin-bottom: 16px;
+  padding: 8px 0 4px;
+  text-align: center;
+}
+
+.camera-page__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 16px 24px;
+  width: 100%;
 }
 
 .camera-page__header-actions {
@@ -788,6 +799,33 @@ button.notification-dropdown-item--button .notification-dropdown-item__text {
   justify-content: flex-end;
   gap: 4px;
   flex-shrink: 0;
+}
+
+.camera-page__add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 8px;
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--camera-multi-color, var(--accent-teal, #0d9488));
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.camera-page__add-btn:active:not(:disabled) {
+  opacity: 0.85;
+}
+
+.camera-page__add-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.camera-page__add-icon {
+  font-size: 16px;
 }
 
 .camera-page__sdk-btn {
@@ -819,17 +857,20 @@ button.notification-dropdown-item--button .notification-dropdown-item__text {
 
 .camera-page__heading {
   margin: 0;
-  font-size: 20px;
+  font-size: var(--font-screen-title, 22px);
   font-weight: 700;
-  color: #3d3d3d;
+  color: var(--text-primary, #3d3d3d);
   letter-spacing: -0.02em;
+  text-align: center;
+  line-height: 1.25;
+  width: 100%;
 }
 
 .camera-page__multi-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 0 6px 8px;
+  padding: 6px 8px;
   border: none;
   background: transparent;
   font-size: 13px;
@@ -841,6 +882,11 @@ button.notification-dropdown-item--button .notification-dropdown-item__text {
 
 .camera-page__multi-btn:active {
   opacity: 0.85;
+}
+
+.camera-page__multi-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .camera-page__multi-icon {
@@ -871,19 +917,50 @@ button.notification-dropdown-item--button .notification-dropdown-item__text {
   gap: var(--space-3);
 }
 
-.camera-page__mock-banner {
-  margin: 0 0 4px;
-  padding: 10px 12px;
-  border-radius: 10px;
-  font-size: 12px;
-  line-height: 1.4;
-  color: #9d6b7a;
-  background: rgba(232, 93, 117, 0.08);
-  border: 1px dashed rgba(232, 93, 117, 0.35);
+.camera-page__empty {
+  margin: 8px 0 0;
+  padding: 28px 16px 36px;
+  border-radius: 12px;
+  text-align: center;
+  background: rgba(15, 23, 42, 0.04);
+  border: 1px dashed var(--border-light, #e5e7eb);
 }
 
-.camera-feed-card--mock {
-  outline: 1px dashed rgba(232, 93, 117, 0.25);
+.camera-page__empty-title {
+  margin: 0 0 8px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary, #111827);
+}
+
+.camera-page__empty-desc {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-muted, #6b7280);
+  max-width: 320px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.camera-page__loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  min-height: 200px;
+  margin: 8px 0 20px;
+  padding: 32px 16px;
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.03);
+}
+
+.camera-page__loading-text {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary, #1a2332);
 }
 
 /* Chỉ highlight thẻ đang gọi JSAPI — không khóa pointer cả danh sách (SDK back không resolve promise). */
@@ -2445,13 +2522,20 @@ button.notification-dropdown-item--button .notification-dropdown-item__text {
   padding: 0 4px 4px;
 }
 
+.camera-page__swiper-thumbs .swiper-wrapper {
+  align-items: stretch;
+}
+
 .camera-feed-card--thumb-active {
   border-color: rgba(0, 172, 193, 0.55) !important;
 }
 
 .camera-page__slide-thumb {
-  width: auto !important;
-  max-width: 140px;
+  width: 96px !important;
+  height: 60px !important;
+  max-width: none !important;
+  flex-shrink: 0;
+  box-sizing: border-box;
 }
 
 .camera-feed-card--hero {
@@ -2466,7 +2550,11 @@ button.notification-dropdown-item--button .notification-dropdown-item__text {
 
 .camera-feed-card--thumb {
   margin: 0;
-  max-width: 140px;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  display: flex;
+  flex-direction: column;
   box-shadow: var(--shadow-sm);
   border: 2px solid transparent;
   transition: border-color 0.2s ease;
@@ -2477,22 +2565,22 @@ button.notification-dropdown-item--button .notification-dropdown-item__text {
 }
 
 .camera-feed-card__preview--thumb {
-  aspect-ratio: 16 / 10;
-  max-height: 72px;
-  border-radius: 12px 12px 0 0;
+  flex: 1;
+  min-height: 0;
+  aspect-ratio: unset;
+  max-height: none;
+  height: 100%;
+  border-radius: var(--radius-card);
 }
 
-.camera-feed-card__bar--thumb {
-  padding: 6px 8px 8px !important;
-}
-
-.camera-feed-card__id--thumb {
-  font-size: 11px !important;
-  font-weight: 600 !important;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+/* Ảnh phủ kín khung preview — tránh khoảng trắng do % height / intrinsic size */
+.camera-feed-card__preview--thumb .camera-feed-card__thumb,
+.camera-feed-card__preview--hero .camera-feed-card__thumb {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 /* Cửa hàng: banner Swiper */

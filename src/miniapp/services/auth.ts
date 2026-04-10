@@ -2,9 +2,15 @@ import { getApiBase, getMiniAppAppId, DEFAULT_SCOPES } from "../lib/config";
 import { getAuthCode as apiGetAuthCode } from "../../api/authentication/getAuthCode";
 import { authorize } from "../../api/permissions/authorize";
 import { getLocation } from "../../api/location/getLocation";
-
 const WV_READY_TIMEOUT_MS = 12000;
 const WV_POLL_INTERVAL_MS = 150;
+const LAST_AUTH_CODE_KEY = "miniapp_last_auth_code";
+
+function saveLastAuthCode(authCode: string): void {
+  try {
+    sessionStorage.setItem(LAST_AUTH_CODE_KEY, authCode);
+  } catch {}
+}
 
 export function isWindVaneReady(): boolean {
   return typeof window !== "undefined" && !!window.WindVane && typeof window.WindVane.call === "function";
@@ -97,7 +103,9 @@ async function getAuthCodeWithRetry(
     await ensurePermissions(scopes);
 
     try {
-      return await tryGetAuthCode(appId, scopes);
+      const first = await tryGetAuthCode(appId, scopes);
+      saveLastAuthCode(first.authCode);
+      return first;
     } catch (firstErr: unknown) {
       const firstMsg = errorMessage(firstErr);
       const isLocationOrConsentError =
@@ -106,13 +114,17 @@ async function getAuthCodeWithRetry(
       if (isLocationOrConsentError) {
         await ensurePermissions(scopes);
         try {
-          return await tryGetAuthCode(appId, scopes);
+          const second = await tryGetAuthCode(appId, scopes);
+          saveLastAuthCode(second.authCode);
+          return second;
         } catch {
           const usedFallback = !scopes.includes("auth_user");
           if (usedFallback) {
             try {
               await authorize("auth_user");
-              return await tryGetAuthCode(appId, FALLBACK_SCOPES);
+              const fallback = await tryGetAuthCode(appId, FALLBACK_SCOPES);
+              saveLastAuthCode(fallback.authCode);
+              return fallback;
             } catch {
               /* fall through */
             }

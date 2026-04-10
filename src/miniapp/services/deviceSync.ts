@@ -853,10 +853,15 @@ export async function fetchSmartHomeDevicesFromNewgen(): Promise<SmartBuildingDe
 }
 
 export async function getDevicesByUsername(username: string): Promise<SmartBuildingDeviceRecord[]> {
-  const url = `${SMART_BUILDING_BASE_URL}/devices/by-username?username=${encodeURIComponent(username)}`;
+  const bust = `_=${Date.now()}`;
+  const url = `${SMART_BUILDING_BASE_URL}/devices/by-username?username=${encodeURIComponent(username)}&${bust}`;
 
   const [campusResult, newgenDevices] = await Promise.allSettled([
-    fetch(url, { method: "GET", headers: { Accept: "application/json" } }).then(async (res) => {
+    fetch(url, {
+      method: "GET",
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+    }).then(async (res) => {
       const data = await res.json().catch(() => []);
       if (!res.ok) throw new Error(`Get devices HTTP ${res.status}`);
       if (!Array.isArray(data)) return [];
@@ -876,6 +881,7 @@ export async function getDevicesByUsername(username: string): Promise<SmartBuild
     ...campusDevices,
     ...newgen.filter((d) => d.deviceId && !seenIds.has(d.deviceId)),
   ];
+
   return merged;
 }
 

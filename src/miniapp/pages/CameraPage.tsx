@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useCallback, useEffect, useRef } from "react";
-import { AppstoreOutlined } from "@ant-design/icons";
+import { AppstoreOutlined, PlusOutlined } from "@ant-design/icons";
 import { motion } from "framer-motion";
 import type { Swiper as SwiperType } from "swiper";
 import { Swiper, SwiperSlide } from "swiper/react";
@@ -7,15 +7,14 @@ import { useMiniApp } from "../context/MiniAppContext";
 import { CAMERA_PREVIEW_IMAGES } from "../lib/cameraPreview";
 import { labelForCameraUid } from "../lib/homeCamera";
 import { useCameraSdkLoading } from "../hooks/useCameraSdkLoading";
-import { runMakeCallFromCameraFlow } from "../utils/cameraFlow";
+import { runMakeCallFromCameraFlow, type CameraTypeView } from "../utils/cameraFlow";
 
-const MOCK_CAMERA_ROWS: { uid: string; label: string; thumb: string }[] = [
-  { uid: "T3T20240045025", label: "Front Gate Camera", thumb: CAMERA_PREVIEW_IMAGES[0] },
-  { uid: "T3T20240045026", label: "Front Gate Camera 2", thumb: CAMERA_PREVIEW_IMAGES[1] },
-];
+/** Trên ngưỡng này mới gắn `title` (tooltip gốc trình duyệt) vì không còn hiển thị tên trong ô. */
+const THUMB_NAME_TOOLTIP_MIN_LEN = 14;
 
 export const CameraPage: React.FC = () => {
-  const { cameraToken, cameraUIDs, devices } = useMiniApp();
+  const { cameraToken, cameraUIDs, devices, miniAppInitialized, sessionResyncLoading } = useMiniApp();
+  const cameraListBlocked = !miniAppInitialized || sessionResyncLoading;
 
   const { loadingUid, runWithLoading } = useCameraSdkLoading();
   const [banner, setBanner] = useState<{ type: "ok" | "err"; text: string } | null>(null);
@@ -32,15 +31,12 @@ export const CameraPage: React.FC = () => {
 
   const rows = useMemo(() => {
     const uids = cameraUIDs.map((u) => String(u).trim()).filter(Boolean);
-    if (uids.length > 0) {
-      return uids.map((uid, i) => ({
-        uid,
-        label: labelForCameraUid(uid, devices),
-        thumb: CAMERA_PREVIEW_IMAGES[i % CAMERA_PREVIEW_IMAGES.length],
-        isMock: false,
-      }));
-    }
-    return MOCK_CAMERA_ROWS.map((row) => ({ ...row, isMock: true as const }));
+    if (uids.length === 0) return [];
+    return uids.map((uid, i) => ({
+      uid,
+      label: labelForCameraUid(uid, devices),
+      thumb: CAMERA_PREVIEW_IMAGES[i % CAMERA_PREVIEW_IMAGES.length],
+    }));
   }, [cameraUIDs, devices]);
 
   const rowsSignature = useMemo(() => rows.map((r) => r.uid).join("\u0001"), [rows]);
@@ -62,12 +58,12 @@ export const CameraPage: React.FC = () => {
     }
   }, [activeIndex, rows.length]);
 
-  const activeRow = rows[activeIndex] ?? rows[0];
+  const activeRow = rows.length > 0 ? rows[Math.min(activeIndex, rows.length - 1)] : undefined;
 
   const token = String(cameraToken ?? "").trim();
   const hasToken = Boolean(token);
 
-  const invokeMakeCallForUids = async (uids: string[], source: string, typeView: "LIVE" | "MULTIVIEW" = "LIVE") => {
+  const invokeMakeCallForUids = async (uids: string[], source: string, typeView: CameraTypeView = "LIVE") => {
     if (!hasToken) {
       setBanner({ type: "err", text: "Chưa có cameraToken. Hãy đăng nhập lại." });
       return;
@@ -91,7 +87,15 @@ export const CameraPage: React.FC = () => {
 
   const onMultiView = () => {
     const uids = rows.map((r) => r.uid).filter(Boolean);
+    if (uids.length === 0) {
+      setBanner({ type: "err", text: "Chưa có camera nào. Hãy đồng bộ đăng nhập khi có dữ liệu camera." });
+      return;
+    }
     void runWithLoading("MULTIVIEW", () => invokeMakeCallForUids(uids, "camera-page-multi-view", "MULTIVIEW"));
+  };
+
+  const onAddCamera = () => {
+    void runWithLoading("ADDDEVICES", () => invokeMakeCallForUids([], "camera-page-add-device", "ADDDEVICES"));
   };
 
   const onThumbSwiper = useCallback((swiper: SwiperType) => {
@@ -114,14 +118,41 @@ export const CameraPage: React.FC = () => {
     <div className="camera-page">
       <header className="camera-page__header">
         <h1 className="camera-page__heading">Camera</h1>
-        <div className="camera-page__header-actions">
-          <button type="button" className="camera-page__multi-btn" onClick={onMultiView}>
+        <div className="camera-page__toolbar">
+          <button
+            type="button"
+            className="camera-page__add-btn"
+            onClick={onAddCamera}
+            disabled={cameraListBlocked || loadingUid === "ADDDEVICES"}
+            aria-busy={loadingUid === "ADDDEVICES" || sessionResyncLoading}
+            aria-label="Thêm camera"
+          >
+            <PlusOutlined className="camera-page__add-icon" />
+            <span>{loadingUid === "ADDDEVICES" ? "Đang mở…" : "Thêm camera"}</span>
+          </button>
+          <button
+            type="button"
+            className="camera-page__multi-btn"
+            onClick={onMultiView}
+            disabled={cameraListBlocked || rows.length === 0}
+          >
             <AppstoreOutlined className="camera-page__multi-icon" />
             <span>Xem nhiều màn hình</span>
           </button>
         </div>
       </header>
 
+      {cameraListBlocked ? (
+        <div className="camera-page__loading" role="status" aria-live="polite">
+          <div className="miniapp-loading__spinner" aria-hidden />
+          <p className="camera-page__loading-text">
+            {!miniAppInitialized
+              ? "Đang tải danh sách camera…"
+              : "Đang cập nhật tên camera…"}
+          </p>
+        </div>
+      ) : (
+        <>
       {banner && (
         <div
           className={
@@ -132,10 +163,12 @@ export const CameraPage: React.FC = () => {
         </div>
       )}
 
-      {rows.some((r) => r.isMock) && (
-        <p className="camera-page__mock-banner">Đang hiển thị dữ liệu mẫu — đồng bộ đăng nhập để dùng camera thật.</p>
-      )}
-
+      {rows.length === 0 ? (
+        <div className="camera-page__empty">
+          <p className="camera-page__empty-title">Chưa có camera</p>
+          <p className="camera-page__empty-desc">Khi đăng nhập đồng bộ thành công, danh sách camera sẽ hiển thị tại đây.</p>
+        </div>
+      ) : (
       <div className="camera-page__carousel-wrap">
         {/* Dải thumbnail: bấm / vuốt cập nhật activeIndex (không dùng freeMode — tránh lệch index). */}
         <Swiper
@@ -150,17 +183,19 @@ export const CameraPage: React.FC = () => {
           preventClicksPropagation={false}
           className="camera-page__swiper-thumbs"
         >
-          {rows.map(({ uid, label, thumb, isMock }, index) => {
+          {rows.map(({ uid, label, thumb }, index) => {
             const thumbKey = `strip-${uid}-${index}-${thumb}`;
             const hideImg = brokenThumbs[thumbKey];
             const isActive = index === activeIndex;
+            const showNameTooltip = label.trim().length >= THUMB_NAME_TOOLTIP_MIN_LEN;
             return (
               <SwiperSlide key={`thumb-${uid}-${index}`} className="camera-page__slide-thumb">
                 <div
-                  className={`camera-feed-card camera-feed-card--thumb${isMock ? " camera-feed-card--mock" : ""}${
+                  className={`camera-feed-card camera-feed-card--thumb${
                     isActive ? " camera-feed-card--thumb-active" : ""
                   }`}
-                  role="presentation"
+                  aria-label={`Chọn camera: ${label}`}
+                  title={showNameTooltip ? label : undefined}
                 >
                   <div className="camera-feed-card__preview camera-feed-card__preview--thumb">
                     {hideImg ? (
@@ -175,9 +210,6 @@ export const CameraPage: React.FC = () => {
                       />
                     )}
                   </div>
-                  <div className="camera-feed-card__bar camera-feed-card__bar--thumb">
-                    <span className="camera-feed-card__id camera-feed-card__id--thumb">{label}</span>
-                  </div>
                 </div>
               </SwiperSlide>
             );
@@ -189,7 +221,7 @@ export const CameraPage: React.FC = () => {
           <div className="camera-page__hero-wrap">
             <motion.article
               key={`${activeRow.uid}-${activeIndex}`}
-              className={`camera-feed-card camera-feed-card--hero${activeRow.isMock ? " camera-feed-card--mock" : ""}${
+              className={`camera-feed-card camera-feed-card--hero${
                 loadingUid === activeRow.uid ? " camera-feed-card--sdk-loading-active" : ""
               }`}
               role="button"
@@ -229,6 +261,9 @@ export const CameraPage: React.FC = () => {
           </div>
         )}
       </div>
+      )}
+        </>
+      )}
     </div>
   );
 };
