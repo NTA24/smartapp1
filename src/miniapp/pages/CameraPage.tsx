@@ -9,9 +9,6 @@ import { labelForCameraUid } from "../lib/homeCamera";
 import { useCameraSdkLoading } from "../hooks/useCameraSdkLoading";
 import { runMakeCallFromCameraFlow, type CameraTypeView } from "../utils/cameraFlow";
 
-/** Trên ngưỡng này mới gắn `title` (tooltip gốc trình duyệt) vì không còn hiển thị tên trong ô. */
-const THUMB_NAME_TOOLTIP_MIN_LEN = 14;
-
 export const CameraPage: React.FC = () => {
   const { cameraToken, cameraUIDs, devices, miniAppInitialized, sessionResyncLoading } = useMiniApp();
   const cameraListBlocked = !miniAppInitialized || sessionResyncLoading;
@@ -187,7 +184,6 @@ export const CameraPage: React.FC = () => {
             const thumbKey = `strip-${uid}-${index}-${thumb}`;
             const hideImg = brokenThumbs[thumbKey];
             const isActive = index === activeIndex;
-            const showNameTooltip = label.trim().length >= THUMB_NAME_TOOLTIP_MIN_LEN;
             return (
               <SwiperSlide key={`thumb-${uid}-${index}`} className="camera-page__slide-thumb">
                 <div
@@ -195,7 +191,6 @@ export const CameraPage: React.FC = () => {
                     isActive ? " camera-feed-card--thumb-active" : ""
                   }`}
                   aria-label={`Chọn camera: ${label}`}
-                  title={showNameTooltip ? label : undefined}
                 >
                   <div className="camera-feed-card__preview camera-feed-card__preview--thumb">
                     {hideImg ? (
@@ -209,6 +204,11 @@ export const CameraPage: React.FC = () => {
                         onError={() => onThumbError(thumbKey)}
                       />
                     )}
+                  </div>
+                  <div className="camera-feed-card__bar camera-feed-card__bar--thumb">
+                    <span className="camera-feed-card__id camera-feed-card__id--thumb" title={label}>
+                      {label}
+                    </span>
                   </div>
                 </div>
               </SwiperSlide>

@@ -60,7 +60,7 @@ const initialState: MiniAppState = {
   authModalVisible: false,
   authLoading: false,
   authError: "",
-  miniAppInitialized: false,
+  miniAppInitialized: true,
   sessionResyncLoading: false,
 };
 
@@ -88,7 +88,7 @@ export function MiniAppProvider({ children }: { children: React.ReactNode }) {
   }));
 
   const didRequestRef = useRef(false);
-  const miniAppInitializedRef = useRef(false);
+  const miniAppInitializedRef = useRef(true);
   miniAppInitializedRef.current = state.miniAppInitialized;
   const resyncLabelSnapshotRef = useRef("");
 
@@ -291,16 +291,7 @@ export function MiniAppProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-
-    void (async () => {
-      try {
-        await initializeMiniApp();
-      } catch {
-        /* lỗi đã log trong requestAuthAndPhone / auth */
-      } finally {
-        setState((s) => ({ ...s, miniAppInitialized: true }));
-      }
-    })();
+    void initializeMiniApp().catch(() => {});
     return undefined;
   }, [initializeMiniApp]);
 

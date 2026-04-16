@@ -4,24 +4,15 @@ import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { MenuOutlined, SettingOutlined, SearchOutlined } from "@ant-design/icons";
 import { useMiniApp } from "../context/MiniAppContext";
-import { useAuthLoading } from "../hooks/useAuthLoading";
 import { formatPhone } from "../utils/phone";
 
 export const HomeLayout: React.FC = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const { userPhone } = useMiniApp();
-  const loadingUser = useAuthLoading(userPhone);
   const location = useLocation();
 
   return (
     <div className="home-page home-page--motion">
-      {loadingUser && (
-        <div className="miniapp-loading__overlay">
-          <div className="miniapp-loading__spinner" />
-          <div className="miniapp-loading__text">Đang tải thông tin...</div>
-        </div>
-      )}
-
       <div className="home-page__user-block" id="user-id">
         <Typography.Title level={4} className="home-page__user-greeting" style={{ margin: 0 }}>
           Nhà của tôi

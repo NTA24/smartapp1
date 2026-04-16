@@ -81,6 +81,7 @@ export interface SmartBuildingDeviceRecord {
   name?: string;
   storedAt?: string;
   username?: string;
+  fenceChannel?: 1 | 2;
   [key: string]: unknown;
 }
 
@@ -374,6 +375,46 @@ export function isHumanSensorTelemetryDevice(d: SmartBuildingDeviceRecord): bool
   return /\bhuman\b|\bpir\b|\bpresence\b|\bngười\b|\bperson\b|human sensor|cảm biến người|cam bien nguoi/.test(t);
 }
 
+export function isDoorSensorTelemetryDevice(d: SmartBuildingDeviceRecord): boolean {
+  const id = String(d.deviceId ?? d.device?.id?.id ?? "").trim();
+  const envIds = parseEnvDeviceIdList("VITE_NEWGEN_DOOR_SENSOR_DEVICE_IDS");
+  if (id && envIds.length > 0 && envIds.includes(id)) return true;
+
+  const t = [
+    d.label,
+    d.name,
+    d.device?.label,
+    d.device?.name,
+    d.deviceType,
+    d.device?.type,
+  ]
+    .map((x) => String(x ?? "").toLowerCase())
+    .join(" ");
+  return /\bdoor\b|\bcửa\b|\bcua\b|door sensor|cảm biến cửa|cam bien cua|contact sensor/.test(t);
+}
+
+export function isFenceSensorTelemetryDevice(d: SmartBuildingDeviceRecord): boolean {
+  const id = String(d.deviceId ?? d.device?.id?.id ?? "").trim();
+  const envIds = [
+    ...parseEnvDeviceIdList("VITE_NEWGEN_FENCE1_SENSOR_DEVICE_IDS"),
+    ...parseEnvDeviceIdList("VITE_NEWGEN_FENCE2_SENSOR_DEVICE_IDS"),
+    ...parseEnvDeviceIdList("VITE_NEWGEN_FENCE_SENSOR_DEVICE_IDS"),
+  ];
+  if (id && envIds.length > 0 && envIds.includes(id)) return true;
+
+  const t = [
+    d.label,
+    d.name,
+    d.device?.label,
+    d.device?.name,
+    d.deviceType,
+    d.device?.type,
+  ]
+    .map((x) => String(x ?? "").toLowerCase())
+    .join(" ");
+  return /\bfence\b|\bhàng rào\b|\bhang rao\b|fence sensor|perimeter|hàng\s*rào\s*điện|electric fence/.test(t);
+}
+
 
 export const SMOKE_DETECTED_TELEMETRY_KEY = "smoke_sensor";
 
@@ -385,6 +426,12 @@ export const HUMAN_SENSOR_TELEMETRY_KEY = "human_sensor";
 
 
 export const HUMAN_SENSOR_TELEMETRY_KEY_ALT = "humanDetected";
+
+export const DOOR_SENSOR_TELEMETRY_KEY = "door_sensor";
+
+export const DOOR_SENSOR_TELEMETRY_KEY_ALT = "doorSensor";
+export const FENCE1_SENSOR_TELEMETRY_KEY = "channel_1_status";
+export const FENCE2_SENSOR_TELEMETRY_KEY = "channel_2_status";
 
 
 
@@ -498,6 +545,94 @@ export async function fetchDeviceHumanSensorLatest(deviceId: string): Promise<bo
     }
     if (raw === undefined || raw === null) return null;
     return parseSmokeDetectedValue(raw);
+  } catch {
+    return null;
+  }
+}
+
+function parseDoorSensorOpenValue(data: unknown): boolean | null {
+  if (data === true || data === 1) return true;
+  if (data === false || data === 0) return false;
+  const v = String(data ?? "").toLowerCase().trim();
+  if (!v) return null;
+  if (["open", "opened", "unlock", "unlocked", "on", "true", "1"].includes(v)) return true;
+  if (["closed", "close", "lock", "locked", "off", "false", "0"].includes(v)) return false;
+  return null;
+}
+
+export async function fetchDeviceDoorSensorLatest(deviceId: string): Promise<boolean | null> {
+  const headers = getNewgenTelemetryReadHeaders();
+  if (!headers) {
+    addLog("[door_http]", deviceId, "no-headers");
+    return null;
+  }
+  const endTs = Date.now();
+  const startTs = endTs - 90 * 24 * 60 * 60 * 1000;
+  const url = getNewgenDeviceTimeseriesUrl(deviceId, [DOOR_SENSOR_TELEMETRY_KEY, DOOR_SENSOR_TELEMETRY_KEY_ALT], {
+    startTs,
+    endTs,
+    limit: 500,
+  });
+  try {
+    addLog("[door_http]", deviceId, "fetch", url.slice(0, 120));
+    const res = await fetch(url, {
+      method: "GET",
+      headers,
+    });
+    if (!res.ok) {
+      addLog("[door_http]", deviceId, `http-${res.status}`);
+      return null;
+    }
+    const data: unknown = await res.json().catch(() => null);
+    addLog("[door_http]", deviceId, "resp", JSON.stringify(data).slice(0, 200));
+    let raw = latestTimeseriesValue(data, DOOR_SENSOR_TELEMETRY_KEY);
+    if (raw === undefined || raw === null) {
+      raw = latestTimeseriesValue(data, DOOR_SENSOR_TELEMETRY_KEY_ALT);
+    }
+    if (raw === undefined || raw === null) {
+      addLog("[door_http]", deviceId, "no-ts-value");
+      return null;
+    }
+    const result = parseDoorSensorOpenValue(raw);
+    addLog("[door_http]", deviceId, `parsed=${result}`);
+    return result;
+  } catch (e) {
+    addLog("[door_http]", deviceId, "error", String(e));
+    return null;
+  }
+}
+
+function parseFenceSensorAlarmValue(data: unknown): boolean | null {
+  if (data === true || data === 1) return true;
+  if (data === false || data === 0) return false;
+  const v = String(data ?? "").toLowerCase().trim();
+  if (!v) return null;
+  if (["alarm", "alert", "triggered", "on", "true", "1"].includes(v)) return true;
+  if (["good", "normal", "ok", "off", "false", "0"].includes(v)) return false;
+  return null;
+}
+
+export async function fetchDeviceFenceSensorLatest(deviceId: string, channel: 1 | 2 = 1): Promise<boolean | null> {
+  const headers = getNewgenTelemetryReadHeaders();
+  if (!headers) return null;
+  const endTs = Date.now();
+  const startTs = endTs - 90 * 24 * 60 * 60 * 1000;
+  const key = channel === 2 ? FENCE2_SENSOR_TELEMETRY_KEY : FENCE1_SENSOR_TELEMETRY_KEY;
+  const url = getNewgenDeviceTimeseriesUrl(deviceId, [key], {
+    startTs,
+    endTs,
+    limit: 500,
+  });
+  try {
+    const res = await fetch(url, {
+      method: "GET",
+      headers,
+    });
+    if (!res.ok) return null;
+    const data: unknown = await res.json().catch(() => null);
+    const raw = latestTimeseriesValue(data, key);
+    if (raw === undefined || raw === null) return null;
+    return parseFenceSensorAlarmValue(raw);
   } catch {
     return null;
   }
@@ -849,7 +984,53 @@ async function fetchAllNewgenDevices(): Promise<SmartBuildingDeviceRecord[]> {
 
 
 export async function fetchSmartHomeDevicesFromNewgen(): Promise<SmartBuildingDeviceRecord[]> {
-  return fetchAllNewgenDevices();
+  const list = await fetchAllNewgenDevices();
+  const seenIds = new Set(list.map((d) => String(d.deviceId ?? d.device?.id?.id ?? "").trim()).filter(Boolean));
+
+  const fence1Ids = [
+    ...parseEnvDeviceIdList("VITE_NEWGEN_FENCE1_SENSOR_DEVICE_IDS"),
+    ...parseEnvDeviceIdList("VITE_NEWGEN_FENCE_SENSOR_DEVICE_IDS"),
+  ].filter(Boolean);
+  const fence2Ids = [
+    ...parseEnvDeviceIdList("VITE_NEWGEN_FENCE2_SENSOR_DEVICE_IDS"),
+    ...fence1Ids,
+  ].filter(Boolean);
+
+  for (const id of fence1Ids) {
+    if (seenIds.has(id)) continue;
+    list.push({
+      deviceId: id,
+      name: "Fence1",
+      label: "Fence1",
+      deviceType: "fence_sensor",
+      fenceChannel: 1,
+      device: {
+        id: { id, entityType: "DEVICE" },
+        name: "Fence1",
+        label: "Fence1",
+        type: "fence_sensor",
+      },
+    });
+    seenIds.add(id);
+  }
+
+  for (const id of fence2Ids) {
+    list.push({
+      deviceId: id,
+      name: "Fence2",
+      label: "Fence2",
+      deviceType: "fence_sensor",
+      fenceChannel: 2,
+      device: {
+        id: { id, entityType: "DEVICE" },
+        name: "Fence2",
+        label: "Fence2",
+        type: "fence_sensor",
+      },
+    });
+  }
+
+  return list;
 }
 
 export async function getDevicesByUsername(username: string): Promise<SmartBuildingDeviceRecord[]> {

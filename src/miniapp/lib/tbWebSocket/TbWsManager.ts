@@ -31,6 +31,8 @@ import {
   type Sub,
   type TbWsMsg,
   type ValueCb,
+  DOOR_TS_KEY,
+  DOOR_TS_KEY_ALT,
   GATEWAY_PLUG_ATTR_KEY,
   HUMAN_TS_KEY,
   HUMAN_TS_KEY_ALT,
@@ -139,6 +141,7 @@ export class TbWsManager {
   ): void {
     const rows = normalizeTelemetryPoints(rawPts);
     const isHumanKey = k === HUMAN_TS_KEY || k === HUMAN_TS_KEY_ALT;
+    const isDoorKey = k === DOOR_TS_KEY || k === DOOR_TS_KEY_ALT;
     const isGatewayPlugKey = k === GATEWAY_PLUG_ATTR_KEY;
 
     let v: unknown;
@@ -178,6 +181,14 @@ export class TbWsManager {
       );
       const dev = (entityId ?? matches[0]?.deviceId ?? "").trim();
       logHumanSensorWsLine(dev || "?", v);
+    }
+    if (isDoorKey) {
+      const matches = [...this.subs.values()].filter((s) =>
+        s.batchKeys ? s.batchKeys.includes(k) : s.key === k,
+      );
+      const dev = (entityId ?? matches[0]?.deviceId ?? "").trim();
+      const state = String(v ?? "").toLowerCase().trim();
+      addLog("[door_sensor]", dev || "?", state === "open" ? "open" : state === "closed" ? "closed" : `raw=${humanSensorValPreview(v)}`);
     }
     if (isGatewayPlugKey) {
       const matches = [...this.subs.values()].filter((s) =>
@@ -511,6 +522,18 @@ export class TbWsManager {
       };
     }
 
+    if (sub.subType === "attr_any") {
+      return {
+        type: "ATTRIBUTES" as const,
+        entityType: "DEVICE" as const,
+        entityId: sub.deviceId,
+        scope: null as unknown as string,
+        keys: keysWire,
+        cmdId: sub.cmdId,
+        unsubscribe: false as const,
+      };
+    }
+
     let scope: "CLIENT_SCOPE" | "SERVER_SCOPE" | "SHARED_SCOPE";
     if (sub.subType === "client_attr") scope = "CLIENT_SCOPE";
     else if (sub.subType === "shared_attr") scope = "SHARED_SCOPE";
@@ -580,7 +603,7 @@ export class TbWsManager {
   subscribe(
     deviceId: string,
     key: string,
-    subType: "ts" | "attr" | "client_attr" | "shared_attr",
+    subType: "ts" | "attr" | "attr_any" | "client_attr" | "shared_attr",
     cb: ValueCb,
   ): () => void {
     for (const [existingId, existing] of [...this.subs.entries()]) {
@@ -612,7 +635,7 @@ export class TbWsManager {
   subscribeBatch(
     deviceId: string,
     batchKeys: readonly string[],
-    subType: "client_attr" | "shared_attr" | "attr" | "ts",
+    subType: "client_attr" | "shared_attr" | "attr" | "attr_any" | "ts",
     cb: BatchAttrCb,
   ): () => void {
     for (const [existingId, existing] of [...this.subs.entries()]) {

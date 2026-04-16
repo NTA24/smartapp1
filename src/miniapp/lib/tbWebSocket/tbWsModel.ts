@@ -7,7 +7,7 @@ export interface Sub {
   key: string;
   batchKeys?: readonly string[];
   batchAttrCb?: BatchAttrCb;
-  subType: "ts" | "attr" | "client_attr" | "shared_attr";
+  subType: "ts" | "attr" | "attr_any" | "client_attr" | "shared_attr";
   cb: ValueCb;
 }
 
@@ -27,6 +27,10 @@ export const SMOKE_TS_KEY = "smoke_sensor";
 export const SMOKE_TS_KEY_ALT = "smokeDetected";
 export const HUMAN_TS_KEY = "human_sensor";
 export const HUMAN_TS_KEY_ALT = "humanDetected";
+export const DOOR_TS_KEY = "door_sensor";
+export const DOOR_TS_KEY_ALT = "doorSensor";
+export const FENCE1_TS_KEY = "channel_1_status";
+export const FENCE2_TS_KEY = "channel_2_status";
 export const GATEWAY_PLUG_ATTR_KEY = "state-plug";
 
 export const RECONNECT_BASE_MS = 2_000;

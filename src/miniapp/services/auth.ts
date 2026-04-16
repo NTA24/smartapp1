@@ -2,8 +2,7 @@ import { getApiBase, getMiniAppAppId, DEFAULT_SCOPES } from "../lib/config";
 import { getAuthCode as apiGetAuthCode } from "../../api/authentication/getAuthCode";
 import { authorize } from "../../api/permissions/authorize";
 import { getLocation } from "../../api/location/getLocation";
-const WV_READY_TIMEOUT_MS = 12000;
-const WV_POLL_INTERVAL_MS = 150;
+const WV_READY_TIMEOUT_MS = 10_000;
 const LAST_AUTH_CODE_KEY = "miniapp_last_auth_code";
 
 function saveLastAuthCode(authCode: string): void {
@@ -16,9 +15,54 @@ export function isWindVaneReady(): boolean {
   return typeof window !== "undefined" && !!window.WindVane && typeof window.WindVane.call === "function";
 }
 
+type WvListener = () => void;
+const _wvListeners: WvListener[] = [];
+let _wvReady = false;
+
+function notifyWvReady() {
+  if (_wvReady) return;
+  _wvReady = true;
+  for (const fn of _wvListeners.splice(0)) fn();
+}
+
+if (typeof window !== "undefined") {
+  if (isWindVaneReady()) {
+    _wvReady = true;
+  } else {
+    try {
+      let _wvValue = (window as unknown as Record<string, unknown>).WindVane;
+      Object.defineProperty(window, "WindVane", {
+        configurable: true,
+        enumerable: true,
+        get() { return _wvValue; },
+        set(v: unknown) {
+          _wvValue = v;
+          if (v && typeof (v as Record<string, unknown>).call === "function") {
+            Object.defineProperty(window, "WindVane", {
+              configurable: true, enumerable: true, writable: true, value: v,
+            });
+            notifyWvReady();
+          }
+        },
+      });
+    } catch {
+      /* property trap not supported — fall back to event + timeout */
+    }
+
+    if (typeof document !== "undefined") {
+      document.addEventListener("WindVaneReady", () => {
+        if (isWindVaneReady()) notifyWvReady();
+      }, { once: true });
+    }
+  }
+}
+
 export function onWindVaneReady(): Promise<void> {
-  return new Promise((resolve) => {
+  if (_wvReady) return Promise.resolve();
+
+  return new Promise<void>((resolve) => {
     if (isWindVaneReady()) {
+      notifyWvReady();
       return resolve();
     }
 
@@ -29,27 +73,9 @@ export function onWindVaneReady(): Promise<void> {
       resolve();
     };
 
-    if (typeof document !== "undefined") {
-      document.addEventListener("WindVaneReady", () => finish(), { once: true });
-    }
-
-    const pollStart = Date.now();
-    const pollId = setInterval(() => {
-      if (done) {
-        clearInterval(pollId);
-        return;
-      }
-      if (isWindVaneReady()) {
-        clearInterval(pollId);
-        finish();
-      } else if (Date.now() - pollStart >= WV_READY_TIMEOUT_MS) {
-        clearInterval(pollId);
-        finish();
-      }
-    }, WV_POLL_INTERVAL_MS);
+    _wvListeners.push(finish);
 
     setTimeout(() => {
-      clearInterval(pollId);
       if (!done) finish();
     }, WV_READY_TIMEOUT_MS);
   });

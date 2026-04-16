@@ -13,24 +13,14 @@ import {
   CheckCircleFilled,
 } from "@ant-design/icons";
 import { useMiniApp } from "../context/MiniAppContext";
-import { useAuthLoading } from "../hooks/useAuthLoading";
 import { formatPhone } from "../utils/phone";
 
 export const ProfilePage: React.FC = () => {
   const { userPhone } = useMiniApp();
-  const loadingName = useAuthLoading(userPhone);
   const phoneDisplay = userPhone ? formatPhone(userPhone) : "Chưa có";
 
   return (
     <div className="profile-page">
-      {loadingName && (
-        <div className="miniapp-loading__overlay">
-          <div className="miniapp-loading__spinner" />
-          <div className="miniapp-loading__text">Đang tải thông tin...</div>
-          <div className="miniapp-loading__subtext">Vui lòng chờ...</div>
-        </div>
-      )}
-
       <header className="profile-page__header-compact">
         <div className="profile-page__header-main">
           <Typography.Title level={4} className="profile-page__header-title" style={{ margin: 0 }}>

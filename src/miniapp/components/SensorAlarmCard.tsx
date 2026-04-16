@@ -1,6 +1,5 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { useNavigate } from "react-router-dom";
 
 export interface SensorAlarmCardProps {
   deviceId: string;
@@ -39,8 +38,6 @@ export const SensorAlarmCard: React.FC<SensorAlarmCardProps> = ({
   variant = "alarm",
   alarmTheme = "smoke",
 }) => {
-  const navigate = useNavigate();
-
   const loaded = wsState !== undefined;
   const showAlarm = variant === "alarm" && loaded && wsState === true;
   const presenceActive = variant === "presence" && loaded && wsState === true;
@@ -55,14 +52,8 @@ export const SensorAlarmCard: React.FC<SensorAlarmCardProps> = ({
       data-device-id={deviceId}
       data-ws-rev={wsRev ?? undefined}
       data-presence={!loaded ? "loading" : wsState ? "detected" : "cleared"}
-      role="button"
-      tabIndex={0}
       layout
       transition={{ layout: { duration: 0.35, ease: [0.25, 0.1, 0.25, 1] } }}
-      onClick={() => navigate(`/device/${deviceId}`)}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") navigate(`/device/${deviceId}`);
-      }}
       aria-label={`${ariaPrefix}: ${title} — ${
         !loaded ? "…" : variant === "presence" ? (wsState ? alarmLabel : normalLabel) : showAlarm ? alarmLabel : normalLabel
       }`}

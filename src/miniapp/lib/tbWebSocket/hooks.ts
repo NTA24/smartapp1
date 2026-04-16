@@ -3,13 +3,17 @@ import { fetchDeviceSwitchChannelStates } from "../../services/deviceSync";
 import { getNewgenWsUseCmdsFormat } from "../config";
 import {
   type BatchAttrCb,
+  DOOR_TS_KEY,
+  DOOR_TS_KEY_ALT,
+  FENCE1_TS_KEY,
+  FENCE2_TS_KEY,
   GATEWAY_PLUG_ATTR_KEY,
   HUMAN_TS_KEY,
   HUMAN_TS_KEY_ALT,
   SMOKE_TS_KEY,
   SMOKE_TS_KEY_ALT,
 } from "./tbWsModel";
-import { mapPresenceWsPayloadToAlarmState } from "./tbWsParser";
+import { mapDoorWsPayloadToOpenState, mapFenceWsPayloadToAlarmState, mapPresenceWsPayloadToAlarmState } from "./tbWsParser";
 import {
   COMMAND_KEYS,
   SWITCH_KEYS,
@@ -25,7 +29,7 @@ interface WsValueState {
 function useTbWs(
   deviceId: string | null,
   key: string,
-  subType: "ts" | "attr" | "client_attr" | "shared_attr",
+  subType: "ts" | "attr" | "attr_any" | "client_attr" | "shared_attr",
 ): { value: unknown; rev: number } {
   const [state, setState] = useState<WsValueState>({ value: undefined, rev: 0 });
   const setRef = useRef(setState);
@@ -157,6 +161,33 @@ export function useHumanDetectedWs(deviceId: string | null): {
   return {
     alarm: pickPresenceAlarm(a, b),
     wsRev: r1 + r2,
+  };
+}
+
+export function useDoorSensorWs(deviceId: string | null): {
+  open: boolean | undefined;
+  wsRev: number;
+} {
+  const { value: v1, rev: r1 } = useTbWs(deviceId, DOOR_TS_KEY, "attr_any");
+  const { value: v2, rev: r2 } = useTbWs(deviceId, DOOR_TS_KEY_ALT, "attr_any");
+  const a = mapDoorWsPayloadToOpenState(v1);
+  const b = mapDoorWsPayloadToOpenState(v2);
+  return {
+    open: pickPresenceAlarm(a, b),
+    wsRev: r1 + r2,
+  };
+}
+
+export function useFenceSensorWs(deviceId: string | null, channel?: 1 | 2): {
+  alarm: boolean | undefined;
+  wsRev: number;
+} {
+  const selectedChannel = channel ?? 1;
+  const key = selectedChannel === 2 ? FENCE2_TS_KEY : FENCE1_TS_KEY;
+  const { value: raw, rev } = useTbWs(deviceId, key, "attr_any");
+  return {
+    alarm: mapFenceWsPayloadToAlarmState(raw),
+    wsRev: rev,
   };
 }
 

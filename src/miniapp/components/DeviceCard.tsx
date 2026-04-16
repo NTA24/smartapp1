@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Col, Row } from "antd";
 import { motion } from "framer-motion";
-import { useNavigate } from "react-router-dom";
 import { useDevicePower } from "../hooks/useDevicePower";
 import type { DeviceCardKind } from "../lib/deviceCardKind";
 import type { SmartSwitchChannel } from "../services/deviceSync";
@@ -41,7 +40,6 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({
   initialRemotePowerSource,
 }) => {
   const { on: localOn, setPower } = useDevicePower(deviceId, defaultOn);
-  const navigate = useNavigate();
   const [powerBusy, setPowerBusy] = useState(false);
   const [channelBusy, setChannelBusy] = useState<SmartSwitchChannel | null>(null);
 
@@ -123,12 +121,6 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({
       data-device-kind={deviceKind ?? undefined}
       layout
       transition={{ layout: { duration: 0.35 } }}
-      onClick={(e) => {
-        const target = e.target;
-        if (!(target instanceof Element)) return;
-        if (target.closest(".power-btn") || target.closest(".device-card__sw-grid")) return;
-        navigate(`/device/${deviceId}`);
-      }}
     >
       <div className="card-header">
         <div className="device-icon-wrap">

@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { SmartHomeDeviceRow } from "../components/SmartHomeDeviceRow";
-import { HomeRoomStrip } from "../components/HomeRoomStrip";
 import type { SmartBuildingDeviceRecord } from "../services/deviceSync";
 import { fetchSmartHomeDevicesFromNewgen } from "../services/deviceSync";
 
@@ -31,8 +30,6 @@ export const HomePage: React.FC = () => {
 
   return (
     <>
-      <HomeRoomStrip />
-
       <div className="home-page__quick-actions">
         <Link to="/add-device" className="home-page__primary-btn">
           Thêm thiết bị

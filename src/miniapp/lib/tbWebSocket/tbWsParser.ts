@@ -73,6 +73,56 @@ export function mapPresenceWsPayloadToAlarmState(raw: unknown): boolean | undefi
   return undefined;
 }
 
+export function mapDoorWsPayloadToOpenState(raw: unknown): boolean | undefined {
+  if (raw === undefined || raw === null) return undefined;
+
+  const pointRows = normalizeTelemetryPoints(raw);
+  if (pointRows && pointRows.length > 0) {
+    const sorted = [...pointRows].sort((a, b) => b[0] - a[0]);
+    const latest = sorted[0]?.[1];
+    return mapDoorWsPayloadToOpenState(latest);
+  }
+
+  const cur = unwrapTelemetryScalar(extractTbWsAttributeValueLikeDemo(raw));
+  if (cur === undefined || cur === null) return undefined;
+  if (typeof cur === "boolean") return cur;
+  if (typeof cur === "number") {
+    if (cur === 1) return true;
+    if (cur === 0) return false;
+  }
+
+  const s = String(cur).replace(/\uFEFF/g, "").trim().toLowerCase();
+  if (!s) return undefined;
+  if (["open", "opened", "unlock", "unlocked", "on", "true", "1"].includes(s)) return true;
+  if (["closed", "close", "lock", "locked", "off", "false", "0"].includes(s)) return false;
+  return undefined;
+}
+
+export function mapFenceWsPayloadToAlarmState(raw: unknown): boolean | undefined {
+  if (raw === undefined || raw === null) return undefined;
+
+  const pointRows = normalizeTelemetryPoints(raw);
+  if (pointRows && pointRows.length > 0) {
+    const sorted = [...pointRows].sort((a, b) => b[0] - a[0]);
+    const latest = sorted[0]?.[1];
+    return mapFenceWsPayloadToAlarmState(latest);
+  }
+
+  const cur = unwrapTelemetryScalar(extractTbWsAttributeValueLikeDemo(raw));
+  if (cur === undefined || cur === null) return undefined;
+  if (typeof cur === "boolean") return cur;
+  if (typeof cur === "number") {
+    if (cur === 1) return true;
+    if (cur === 0) return false;
+  }
+
+  const s = String(cur).replace(/\uFEFF/g, "").trim().toLowerCase();
+  if (!s) return undefined;
+  if (["alarm", "alert", "triggered", "on", "true", "1"].includes(s)) return true;
+  if (["good", "normal", "ok", "off", "false", "0"].includes(s)) return false;
+  return undefined;
+}
+
 export function humanSensorValPreview(raw: unknown): string {
   try {
     const s = JSON.stringify(raw);
