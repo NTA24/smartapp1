@@ -23,6 +23,7 @@ import {
 } from "../services/deviceSync";
 import { postDeviceSharedScopeSwitchChannel, sendGatewayPlugHallwayControl } from "../services/deviceSync";
 import { TB_UUID_RE } from "../utils/tbDeviceUuid";
+import { getDeviceUuid } from "../lib/deviceUuid";
 
 export interface SmartHomeDeviceRowProps {
   device: SmartBuildingDeviceRecord;
@@ -42,9 +43,7 @@ export function SmartHomeDeviceRow({ device: d, index: i }: SmartHomeDeviceRowPr
 
   if (HIDDEN_DEVICE_NAME_RE.test(name)) return <></>;
 
-  const id =
-    String(d.deviceId ?? d.device?.id?.id ?? `${i + 1}`).trim() ||
-    `${i + 1}`;
+  const id = getDeviceUuid(d) || `${i + 1}`;
   const fenceChannel = d.fenceChannel === 2 ? 2 : 1;
   const fenceTitle = fenceChannel === 2 ? "Fence2" : "Fence1";
 

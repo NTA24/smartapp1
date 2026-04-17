@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { SmartHomeDeviceRow } from "../components/SmartHomeDeviceRow";
 import { useMiniApp } from "../context/MiniAppContext";
 import { sortDevicesForUi } from "../lib/deviceOrder";
+import { getDeviceUuid } from "../lib/deviceUuid";
 
 /** Nội dung tab Smart Home (vỏ: HomeLayout) */
 export const HomePage: React.FC = () => {
@@ -38,7 +39,7 @@ export const HomePage: React.FC = () => {
       <div className="home-page__device-cards">
         {sortedDevices.map((d, i) => (
           <SmartHomeDeviceRow
-            key={`${String(d.deviceId ?? d.device?.id?.id ?? `row-${i}`)}-${i}`}
+            key={`${getDeviceUuid(d) || `row-${i}`}-${i}`}
             device={d}
             index={i}
           />

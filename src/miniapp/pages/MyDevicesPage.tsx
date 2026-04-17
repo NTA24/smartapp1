@@ -4,6 +4,7 @@ import { LeftOutlined, RightOutlined } from "@ant-design/icons";
 import { SmartHomeDeviceRow } from "../components/SmartHomeDeviceRow";
 import { useMiniApp } from "../context/MiniAppContext";
 import { sortDevicesForUi } from "../lib/deviceOrder";
+import { getDeviceUuid } from "../lib/deviceUuid";
 
 export const MyDevicesPage: React.FC = () => {
   const { devices, refreshDevices, userPhone } = useMiniApp();
@@ -69,7 +70,7 @@ export const MyDevicesPage: React.FC = () => {
           ) : (
             sortedDevices.map((d, i) => (
               <SmartHomeDeviceRow
-                key={`${String(d.deviceId ?? d.device?.id?.id ?? `row-${i}`)}-${i}`}
+                key={`${getDeviceUuid(d) || `row-${i}`}-${i}`}
                 device={d}
                 index={i}
               />

@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { getMiniAppAppId, getApiBase, saveAppId, STORAGE_KEY_APP_ID, DEFAULT_MINIAPP_APP_ID } from "../lib/config";
+import { addLog } from "../lib/debugLog";
 import { storeGet } from "../lib/store";
 import { getAuthCode, onWindVaneReady } from "../services/auth";
 import {
@@ -27,17 +28,84 @@ function cameraListLabelSignature(uids: string[], devices: SmartBuildingDeviceRe
 function extractIotDevicesFromUserInfo(info: UserInfoResponse): SmartBuildingDeviceRecord[] {
   const raw = (info as Record<string, unknown>).iotDevices;
   if (!Array.isArray(raw)) return [];
+
+  const getStableUuid = (rec: Record<string, unknown>): string => {
+    const direct = String(rec.deviceId ?? "").trim();
+    if (direct) return direct;
+    const nested = rec.device as Record<string, unknown> | undefined;
+    const nestedId = nested?.id as Record<string, unknown> | undefined;
+    const fromNested = String(nestedId?.id ?? "").trim();
+    if (fromNested) return fromNested;
+    return "";
+  };
+
+  const normalizedText = (rec: Record<string, unknown>): string =>
+    [
+      rec.label,
+      rec.name,
+      rec.model,
+      rec.type,
+      rec.deviceType,
+    ]
+      .map((x) => String(x ?? "").toLowerCase().trim())
+      .join(" ");
+
+  const detectType = (rec: Record<string, unknown>): string => {
+    const text = normalizedText(rec);
+
+    // Ưu tiên map theo đúng naming thực tế từ BE user-info.
+    if (/aqara\s*smart\s*plug\s*socket|smart\s*plug\s*socket/.test(text)) return "gateway_socket";
+    if (/smart\s*switch/.test(text)) return "smart_switch";
+    if (/smoke\s*sensor|cảm biến khói|cam bien khoi/.test(text)) return "smoke_sensor";
+    if (/led\s*strip|strip\s*led|dải\s*led|dai\s*led/.test(text)) return "led_strip";
+    if (/door\s*and\s*window\s*sensor|door\s*sensor|contact\s*sensor|cảm biến cửa|cam bien cua/.test(text)) {
+      return "door_sensor";
+    }
+    if (/fence\s*sensor|hàng rào|hang rao/.test(text)) return "fence_sensor";
+    if (/\bhuman\b|\bpir\b|\bpresence\b|\bngười\b/.test(text)) return "human_sensor";
+
+    if (/\bfence\b|\bhàng rào\b|\bhang rao\b/.test(text)) return "fence_sensor";
+    if (/\bdoor\b|\bcửa\b|\bcua\b|contact sensor/.test(text)) return "door_sensor";
+    if (/\bsmoke\b|\bkhói\b|\bkhoi\b/.test(text)) return "smoke_sensor";
+    if (/smart\s*plug|wall\s*socket|ổ\s*cắm|o\s*cam|gateway|home assistant/.test(text)) return "gateway_socket";
+    if (/\bswitch\b|\bcông tắc\b|\bcong tac\b/.test(text)) return "smart_switch";
+    return String(rec.type ?? rec.deviceType ?? "").trim() || "default";
+  };
+
+  const detectFenceChannel = (rec: Record<string, unknown>): 1 | 2 | undefined => {
+    const text = [rec.label, rec.name]
+      .map((x) => String(x ?? "").toLowerCase())
+      .join(" ");
+    if (/\bfence\s*2\b|\bfence2\b/.test(text)) return 2;
+    if (/\bfence\b/.test(text)) return 1;
+    return undefined;
+  };
+
   return raw
     .map((item) => {
       if (!item || typeof item !== "object") return null;
       const rec = item as Record<string, unknown>;
-      const deviceId = String(rec.deviceId ?? "").trim();
+      const deviceId = getStableUuid(rec);
       if (!deviceId) return null;
-      const deviceType = String(rec.type ?? rec.deviceType ?? "").trim();
+      const deviceType = detectType(rec);
+      const fenceChannel = detectFenceChannel(rec);
+      const baseName = String(rec.name ?? rec.label ?? "").trim() || deviceId;
+      const baseLabel = String(rec.label ?? rec.name ?? "").trim() || deviceId;
       return {
         ...rec,
         deviceId,
+        uuid: deviceId,
+        wsDeviceId: deviceId,
+        name: baseName,
+        label: baseLabel,
         ...(deviceType ? { deviceType } : {}),
+        ...(fenceChannel ? { fenceChannel } : {}),
+        device: {
+          id: { id: deviceId, entityType: "DEVICE" },
+          name: baseName,
+          label: baseLabel,
+          type: deviceType,
+        },
       } as SmartBuildingDeviceRecord;
     })
     .filter((item): item is SmartBuildingDeviceRecord => item !== null);
@@ -126,6 +194,7 @@ export function MiniAppProvider({ children }: { children: React.ReactNode }) {
   const miniAppInitializedRef = useRef(true);
   miniAppInitializedRef.current = state.miniAppInitialized;
   const resyncLabelSnapshotRef = useRef("");
+  const lastIotDevicesRef = useRef<SmartBuildingDeviceRecord[]>([]);
 
   useEffect(() => {
     tbWsManager.ensureConnected();
@@ -137,7 +206,8 @@ export function MiniAppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const setDevices = useCallback((devices: SmartBuildingDeviceRecord[]) => {
-    setState((s) => ({ ...s, devices }));
+    const merged = mergeDevicesByDeviceId(devices, lastIotDevicesRef.current);
+    setState((s) => ({ ...s, devices: merged }));
   }, []);
 
   /** Cập nhật cameraToken / cameraUIDs / phone / devices / session từ payload oauth/user-info. */
@@ -147,6 +217,16 @@ export function MiniAppProvider({ children }: { children: React.ReactNode }) {
       const camToken = extractCameraToken(info);
       const camUIDs = extractCameraUIDs(info);
       const iotDevices = extractIotDevicesFromUserInfo(info);
+      lastIotDevicesRef.current = iotDevices;
+      addLog(
+        "[userinfo]",
+        "response",
+        JSON.stringify({
+          tag: "context:parsed-iot",
+          iotCount: iotDevices.length,
+          iotIds: iotDevices.map((d) => String(d.deviceId ?? d.device?.id?.id ?? "").trim()).filter(Boolean),
+        }),
+      );
 
       if (camToken || camUIDs.length > 0) {
         setState((s) => ({ ...s, cameraToken: camToken, cameraUIDs: camUIDs }));
@@ -162,6 +242,8 @@ export function MiniAppProvider({ children }: { children: React.ReactNode }) {
 
       if (phone) {
         setUserPhone(phone);
+        // Khi user-info đã trả iotDevices thì coi đó là nguồn sự thật cho danh sách thiết bị.
+        if (iotDevices.length > 0) return;
         try {
           const devices = await getDevicesByUsername(phone);
           const merged = mergeDevicesByDeviceId(devices, iotDevices);
@@ -188,16 +270,32 @@ export function MiniAppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const refreshDevices = useCallback(async () => {
+    if (lastIotDevicesRef.current.length > 0) {
+      setDevices(lastIotDevicesRef.current);
+      return;
+    }
     const username = String(window.MINIAPP_USER_PHONE ?? state.userPhone ?? "").trim();
     if (!username) {
-      setDevices([]);
+      setDevices(lastIotDevicesRef.current);
       return;
     }
     try {
       const devices = await getDevicesByUsername(username);
-      setDevices(devices);
+      setDevices(mergeDevicesByDeviceId(devices, lastIotDevicesRef.current));
     } catch {}
   }, [setDevices, state.userPhone]);
+
+  useEffect(() => {
+    addLog(
+      "[userinfo]",
+      "response",
+      JSON.stringify({
+        tag: "context:state-devices",
+        stateCount: state.devices.length,
+        stateIds: state.devices.map((d) => String(d.deviceId ?? d.device?.id?.id ?? "").trim()).filter(Boolean),
+      }),
+    );
+  }, [state.devices]);
 
   const refreshOAuthUserInfo = useCallback(async () => {
     setState((s) => {
