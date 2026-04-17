@@ -30,6 +30,11 @@ class MiniAppDebugLogStore {
   }
 
   add(...args: unknown[]): void {
+    const scope = String(args[0] ?? "").trim();
+    const action = String(args[1] ?? "").trim();
+    // Chỉ giữ log response của API user-info.
+    if (!(scope === "[userinfo]" && action === "response")) return;
+
     this.ensureHydrated();
     const line = args.map(serialize).join(" ");
     const time = new Date().toLocaleTimeString("vi-VN", { hour12: false });

@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { LeftOutlined, RightOutlined } from "@ant-design/icons";
 import { SmartHomeDeviceRow } from "../components/SmartHomeDeviceRow";
 import { useMiniApp } from "../context/MiniAppContext";
+import { sortDevicesForUi } from "../lib/deviceOrder";
 
 export const MyDevicesPage: React.FC = () => {
   const { devices, refreshDevices, userPhone } = useMiniApp();
@@ -10,6 +11,7 @@ export const MyDevicesPage: React.FC = () => {
   const [errorText, setErrorText] = useState("");
 
   const username = useMemo(() => String(userPhone || "").trim(), [userPhone]);
+  const sortedDevices = useMemo(() => sortDevicesForUi(devices), [devices]);
 
   const handleRefresh = async () => {
     setErrorText("");
@@ -60,12 +62,12 @@ export const MyDevicesPage: React.FC = () => {
         )}
 
         <div className="my-devices-list">
-          {devices.length === 0 ? (
+          {sortedDevices.length === 0 ? (
             <div style={{ color: "#637083", padding: "12px 2px" }}>
               Chưa có thiết bị nào. Bạn vào màn Thêm thiết bị để tạo mới.
             </div>
           ) : (
-            devices.map((d, i) => (
+            sortedDevices.map((d, i) => (
               <SmartHomeDeviceRow
                 key={`${String(d.deviceId ?? d.device?.id?.id ?? `row-${i}`)}-${i}`}
                 device={d}

@@ -24,6 +24,41 @@ function cameraListLabelSignature(uids: string[], devices: SmartBuildingDeviceRe
     .join("\u0001");
 }
 
+function extractIotDevicesFromUserInfo(info: UserInfoResponse): SmartBuildingDeviceRecord[] {
+  const raw = (info as Record<string, unknown>).iotDevices;
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+      const rec = item as Record<string, unknown>;
+      const deviceId = String(rec.deviceId ?? "").trim();
+      if (!deviceId) return null;
+      const deviceType = String(rec.type ?? rec.deviceType ?? "").trim();
+      return {
+        ...rec,
+        deviceId,
+        ...(deviceType ? { deviceType } : {}),
+      } as SmartBuildingDeviceRecord;
+    })
+    .filter((item): item is SmartBuildingDeviceRecord => item !== null);
+}
+
+function mergeDevicesByDeviceId(
+  preferred: SmartBuildingDeviceRecord[],
+  fallback: SmartBuildingDeviceRecord[],
+): SmartBuildingDeviceRecord[] {
+  const map = new Map<string, SmartBuildingDeviceRecord>();
+  for (const d of fallback) {
+    const id = String(d.deviceId ?? d.device?.id?.id ?? "").trim();
+    if (id) map.set(id, d);
+  }
+  for (const d of preferred) {
+    const id = String(d.deviceId ?? d.device?.id?.id ?? "").trim();
+    if (id) map.set(id, d);
+  }
+  return Array.from(map.values());
+}
+
 interface MiniAppState {
   userPhone: string;
   cameraToken: string;
@@ -111,6 +146,7 @@ export function MiniAppProvider({ children }: { children: React.ReactNode }) {
       const phone = getPhoneFromUserInfo(info);
       const camToken = extractCameraToken(info);
       const camUIDs = extractCameraUIDs(info);
+      const iotDevices = extractIotDevicesFromUserInfo(info);
 
       if (camToken || camUIDs.length > 0) {
         setState((s) => ({ ...s, cameraToken: camToken, cameraUIDs: camUIDs }));
@@ -119,11 +155,17 @@ export function MiniAppProvider({ children }: { children: React.ReactNode }) {
         } catch {}
       }
 
+      if (iotDevices.length > 0) {
+        // Ưu tiên set sớm list iotDevices từ user-info để WS có deviceId ngay.
+        setDevices(iotDevices);
+      }
+
       if (phone) {
         setUserPhone(phone);
         try {
           const devices = await getDevicesByUsername(phone);
-          setDevices(devices);
+          const merged = mergeDevicesByDeviceId(devices, iotDevices);
+          setDevices(merged);
         } catch {}
       }
       const P = window.MiniAppPermissions;

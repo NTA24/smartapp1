@@ -1,28 +1,19 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { SmartHomeDeviceRow } from "../components/SmartHomeDeviceRow";
-import type { SmartBuildingDeviceRecord } from "../services/deviceSync";
-import { fetchSmartHomeDevicesFromNewgen } from "../services/deviceSync";
+import { useMiniApp } from "../context/MiniAppContext";
+import { sortDevicesForUi } from "../lib/deviceOrder";
 
 /** Nội dung tab Smart Home (vỏ: HomeLayout) */
 export const HomePage: React.FC = () => {
+  const { devices, refreshDevices } = useMiniApp();
   const [refreshingDevices, setRefreshingDevices] = useState(false);
-
-  const [smartHomeDevices, setSmartHomeDevices] = useState<SmartBuildingDeviceRecord[]>([]);
-
-  const loadSmartHomeDevices = useCallback(async () => {
-    const list = await fetchSmartHomeDevicesFromNewgen();
-    setSmartHomeDevices(list);
-  }, []);
-
-  useEffect(() => {
-    void loadSmartHomeDevices();
-  }, [loadSmartHomeDevices]);
+  const sortedDevices = useMemo(() => sortDevicesForUi(devices), [devices]);
 
   const handleRefreshDevices = async () => {
     setRefreshingDevices(true);
     try {
-      await loadSmartHomeDevices();
+      await refreshDevices();
     } finally {
       setRefreshingDevices(false);
     }
@@ -45,7 +36,7 @@ export const HomePage: React.FC = () => {
       </div>
 
       <div className="home-page__device-cards">
-        {smartHomeDevices.map((d, i) => (
+        {sortedDevices.map((d, i) => (
           <SmartHomeDeviceRow
             key={`${String(d.deviceId ?? d.device?.id?.id ?? `row-${i}`)}-${i}`}
             device={d}
