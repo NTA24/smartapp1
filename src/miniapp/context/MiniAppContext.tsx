@@ -61,6 +61,7 @@ function extractIotDevicesFromUserInfo(info: UserInfoResponse): SmartBuildingDev
     if (/door\s*and\s*window\s*sensor|door\s*sensor|contact\s*sensor|cảm biến cửa|cam bien cua/.test(text)) {
       return "door_sensor";
     }
+    if (/\bsiren\b|còi báo|coi bao/.test(text)) return "siren";
     if (/fence\s*sensor|hàng rào|hang rao/.test(text)) return "fence_sensor";
     if (/\bhuman\b|\bpir\b|\bpresence\b|\bngười\b/.test(text)) return "human_sensor";
 

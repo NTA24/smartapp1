@@ -171,7 +171,7 @@ export function flattenAttributeData(data: unknown): Record<string, unknown> {
   return out;
 }
 
-export const SMART_SWITCH_LIKE_KEY_RE = /^state-sw[1-4]$|^cmd-sw[1-4]$/;
+export const SMART_SWITCH_LIKE_KEY_RE = /^state-sw[1-4]$/;
 
 export function collectSmartSwitchLikeKeysDeep(node: unknown, acc: Record<string, unknown>): void {
   if (node === undefined || node === null || typeof node !== "object") return;

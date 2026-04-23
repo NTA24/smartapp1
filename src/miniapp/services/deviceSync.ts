@@ -11,6 +11,7 @@ import {
   SMART_BUILDING_BASE_URL,
 } from "../lib/config";
 import { addLog } from "../lib/debugLog";
+import { getCachedLoginJwt, isJwtExpired, tbLogin } from "../lib/tbWebSocket/tbWsAuth";
 
 
 function getNewgenTelemetryReadHeaders(): Record<string, string> | null {
@@ -37,14 +38,22 @@ const JSON_POST_HEADERS_BASE = {
 } as const;
 
 
-function getNewgenSharedScopeWriteHeaders(): Record<string, string> | null {
+async function getNewgenSharedScopeWriteHeaders(): Promise<Record<string, string> | null> {
   const apiKey = getNewgenSampleDevicesApiKey();
   if (apiKey) {
     return { ...JSON_POST_HEADERS_BASE, "X-Authorization": `ApiKey ${apiKey}` };
   }
   const jwt = getNewgenWsJwt();
-  if (jwt) {
+  if (jwt && !isJwtExpired(jwt)) {
     return { ...JSON_POST_HEADERS_BASE, "X-Authorization": `Bearer ${jwt}` };
+  }
+  const cachedJwt = getCachedLoginJwt();
+  if (cachedJwt && !isJwtExpired(cachedJwt)) {
+    return { ...JSON_POST_HEADERS_BASE, "X-Authorization": `Bearer ${cachedJwt}` };
+  }
+  const freshJwt = await tbLogin().catch(() => null);
+  if (freshJwt && !isJwtExpired(freshJwt)) {
+    return { ...JSON_POST_HEADERS_BASE, "X-Authorization": `Bearer ${freshJwt}` };
   }
   return null;
 }
@@ -267,11 +276,22 @@ export function isSmartSwitchTelemetryDevice(d: SmartBuildingDeviceRecord): bool
 
   const n = String(d.label ?? d.name ?? d.device?.label ?? d.device?.name ?? "").toLowerCase();
   const t = String(d.deviceType ?? d.device?.type ?? "").toLowerCase();
+  const merged = `${n} ${t}`;
+  // Aqara plug/socket phải đi nhánh cmd-socket (gateway socket), không phải smart switch 4 kênh.
+  if (
+    /smart\s*plug|wall\s*socket|aqara\s*smart\s*plug\s*socket|ổ\s*cắm|o\s*cam|ổ\s*điện|o\s*dien|cmd-socket/.test(
+      merged,
+    )
+  ) {
+    return false;
+  }
   return (
-    n.includes("switch") ||
-    n.includes("công tắc") ||
-    n.includes("cong tac") ||
-    t.includes("switch")
+    merged.includes("switch") ||
+    merged.includes("smart_switch") ||
+    merged.includes("công tắc") ||
+    merged.includes("cong tac") ||
+    /\bsw[1-4]\b/.test(merged) ||
+    /\b(4ch|4-channel|4 channel|4 gang|4gang)\b/.test(merged)
   );
 }
 
@@ -413,6 +433,80 @@ export function isFenceSensorTelemetryDevice(d: SmartBuildingDeviceRecord): bool
     .map((x) => String(x ?? "").toLowerCase())
     .join(" ");
   return /\bfence\b|\bhàng rào\b|\bhang rao\b|fence sensor|perimeter|hàng\s*rào\s*điện|electric fence/.test(t);
+}
+
+
+export function isSirenTelemetryDevice(d: SmartBuildingDeviceRecord): boolean {
+  const id = String(d.deviceId ?? d.device?.id?.id ?? "").trim();
+  const envIds = parseEnvDeviceIdList("VITE_NEWGEN_SIREN_DEVICE_IDS");
+  if (id && envIds.length > 0 && envIds.includes(id)) return true;
+
+  const t = [
+    d.label,
+    d.name,
+    d.device?.label,
+    d.device?.name,
+    d.deviceType,
+    d.device?.type,
+  ]
+    .map((x) => String(x ?? "").toLowerCase())
+    .join(" ");
+  if (String(d.deviceType ?? "").toLowerCase() === "siren") return true;
+  return /\bsiren\b|còi báo|coi bao/.test(t);
+}
+
+
+export async function postDeviceSirenAttributes(
+  deviceId: string,
+  body: Record<string, string | number>,
+): Promise<void> {
+  const headers = await getNewgenSharedScopeWriteHeaders();
+  if (!headers) {
+    throw new Error("Cần VITE_NEWGEN_SAMPLE_DEVICES_API_KEY hoặc VITE_NEWGEN_WS_JWT để điều khiển siren.");
+  }
+  const id = deviceId.trim();
+  if (!id) return;
+
+  const payload: Record<string, string | number> = {};
+  for (const [k, raw] of Object.entries(body)) {
+    const key = String(k).trim();
+    if (!key) continue;
+    if (key === "siren_tune" || key === "cmd_siren_tune") {
+      payload.cmd_siren_tune = Number(raw);
+      continue;
+    }
+    if (key === "siren_duration_sec" || key === "cmd_siren_duration_sec") {
+      payload.cmd_siren_duration_sec = Number(raw);
+      continue;
+    }
+    if (key === "siren_volume" || key === "cmd_siren_volume") {
+      payload.cmd_siren_volume = Number(raw);
+      continue;
+    }
+    if (key === "siren_state" || key === "cmd_siren_state") {
+      const state = String(raw).trim().toLowerCase();
+      payload.cmd_siren_state = state === "on" ? "on" : "off";
+      continue;
+    }
+    payload[key] = typeof raw === "number" ? raw : String(raw);
+  }
+
+  if (Object.keys(payload).length === 0) return;
+
+  const url = getNewgenDeviceSharedScopeTelemetryUrl(id);
+  addLog("[http_cmd]", id, JSON.stringify(payload));
+  addLog("[http_cmd_req]", "POST", url);
+  const res = await fetch(url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json().catch(() => ({}));
+  addLog("[http_cmd_res]", id, res.status, res.ok ? "ok" : (readMessage(data) || "failed"));
+  if (!res.ok) {
+    const msg = readMessage(data) || `HTTP ${res.status}`;
+    throw new Error(msg || "Siren attribute POST failed");
+  }
 }
 
 
@@ -835,7 +929,7 @@ export async function fetchDeviceLedStripStates(
 
 
 export async function postDeviceSharedScopePower(deviceId: string, powerOn: boolean): Promise<void> {
-  const headers = getNewgenSharedScopeWriteHeaders();
+  const headers = await getNewgenSharedScopeWriteHeaders();
   if (!headers) {
     throw new Error("Cần VITE_NEWGEN_SAMPLE_DEVICES_API_KEY hoặc VITE_NEWGEN_WS_JWT để điều khiển thiết bị.");
   }
@@ -858,19 +952,22 @@ export async function postDeviceSharedScopeSwitchChannel(
   channel: SmartSwitchChannel,
   on: boolean,
 ): Promise<void> {
-  const headers = getNewgenSharedScopeWriteHeaders();
+  const headers = await getNewgenSharedScopeWriteHeaders();
   if (!headers) {
     throw new Error("Cần VITE_NEWGEN_SAMPLE_DEVICES_API_KEY hoặc VITE_NEWGEN_WS_JWT để điều khiển thiết bị.");
   }
   const url = getNewgenDeviceSharedScopeTelemetryUrl(deviceId);
   const key = SHARED_SCOPE_CMD_KEYS[channel - 1];
   const body: Record<string, string> = { [key]: on ? "on" : "off" };
+  addLog("[http_cmd]", deviceId, JSON.stringify(body));
+  addLog("[http_cmd_req]", "POST", url);
   const res = await fetch(url, {
     method: "POST",
     headers,
     body: JSON.stringify(body),
   });
   const data = await res.json().catch(() => ({}));
+  addLog("[http_cmd_res]", deviceId, res.status, res.ok ? "ok" : (readMessage(data) || "failed"));
   if (!res.ok) {
     throw new Error(readMessage(data) || `Telemetry SHARED_SCOPE HTTP ${res.status}`);
   }
@@ -878,7 +975,7 @@ export async function postDeviceSharedScopeSwitchChannel(
 
 
 export async function postDeviceClientScopeStatePlug(deviceId: string, on: boolean): Promise<void> {
-  const headers = getNewgenSharedScopeWriteHeaders();
+  const headers = await getNewgenSharedScopeWriteHeaders();
   if (!headers) {
     throw new Error("Cần VITE_NEWGEN_SAMPLE_DEVICES_API_KEY hoặc VITE_NEWGEN_WS_JWT để điều khiển đèn hành lang.");
   }
@@ -897,18 +994,21 @@ export async function postDeviceClientScopeStatePlug(deviceId: string, on: boole
 
 
 export async function postDeviceSharedScopeSocketPower(deviceId: string, on: boolean): Promise<void> {
-  const headers = getNewgenSharedScopeWriteHeaders();
+  const headers = await getNewgenSharedScopeWriteHeaders();
   if (!headers) {
     throw new Error("Cần VITE_NEWGEN_SAMPLE_DEVICES_API_KEY hoặc VITE_NEWGEN_WS_JWT để điều khiển gateway / đèn hành lang.");
   }
   const url = getNewgenDeviceSharedScopeTelemetryUrl(deviceId);
   const body = { "cmd-socket": on ? "on" : "off" };
+  addLog("[http_cmd]", deviceId, JSON.stringify(body));
+  addLog("[http_cmd_req]", "POST", url);
   const res = await fetch(url, {
     method: "POST",
     headers,
     body: JSON.stringify(body),
   });
   const data = await res.json().catch(() => ({}));
+  addLog("[http_cmd_res]", deviceId, res.status, res.ok ? "ok" : (readMessage(data) || "failed"));
   if (!res.ok) {
     throw new Error(readMessage(data) || `Telemetry SHARED_SCOPE HTTP ${res.status}`);
   }
@@ -923,7 +1023,7 @@ export async function sendGatewayPlugHallwayControl(deviceId: string | null, on:
 
 
 export async function postDeviceSharedScopeLedLight(deviceId: string, on: boolean): Promise<void> {
-  const headers = getNewgenSharedScopeWriteHeaders();
+  const headers = await getNewgenSharedScopeWriteHeaders();
   if (!headers) {
     throw new Error("Cần VITE_NEWGEN_SAMPLE_DEVICES_API_KEY hoặc VITE_NEWGEN_WS_JWT để điều khiển LED.");
   }
@@ -942,7 +1042,7 @@ export async function postDeviceSharedScopeLedLight(deviceId: string, on: boolea
 
 
 export async function postDeviceSharedScopeLedColorTemp(deviceId: string, value: number): Promise<void> {
-  const headers = getNewgenSharedScopeWriteHeaders();
+  const headers = await getNewgenSharedScopeWriteHeaders();
   if (!headers) {
     throw new Error("Cần VITE_NEWGEN_SAMPLE_DEVICES_API_KEY hoặc VITE_NEWGEN_WS_JWT để điều khiển LED.");
   }

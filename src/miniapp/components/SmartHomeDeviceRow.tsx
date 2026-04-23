@@ -6,6 +6,7 @@ import { SmokeSensorCard } from "./SmokeSensorCard";
 import { HumanSensorCard } from "./HumanSensorCard";
 import { DoorSensorCard } from "./DoorSensorCard";
 import { FenceSensorCard } from "./FenceSensorCard";
+import { SirenCard } from "./SirenCard";
 import {
   deviceCardIconForKind,
   deviceCardKindMeta,
@@ -18,10 +19,15 @@ import {
   isFenceSensorTelemetryDevice,
   isHumanSensorTelemetryDevice,
   isLedStripTelemetryDevice,
+  isSirenTelemetryDevice,
   isSmokeSensorTelemetryDevice,
   isSmartSwitchTelemetryDevice,
 } from "../services/deviceSync";
-import { postDeviceSharedScopeSwitchChannel, sendGatewayPlugHallwayControl } from "../services/deviceSync";
+import {
+  postDeviceSharedScopePower,
+  postDeviceSharedScopeSwitchChannel,
+  sendGatewayPlugHallwayControl,
+} from "../services/deviceSync";
 import { TB_UUID_RE } from "../utils/tbDeviceUuid";
 import { getDeviceUuid } from "../lib/deviceUuid";
 
@@ -43,36 +49,45 @@ export function SmartHomeDeviceRow({ device: d, index: i }: SmartHomeDeviceRowPr
 
   if (HIDDEN_DEVICE_NAME_RE.test(name)) return <></>;
 
-  const id = getDeviceUuid(d) || `${i + 1}`;
+  const resolvedId = getDeviceUuid(d).trim();
+  const id = resolvedId || `${i + 1}`;
   const fenceChannel = d.fenceChannel === 2 ? 2 : 1;
   const fenceTitle = fenceChannel === 2 ? "Fence2" : "Fence1";
 
   const isSwitch = isSmartSwitchTelemetryDevice(d);
-  const tbUuid = TB_UUID_RE.test(id);
-  const useNewgenSwitchPower = tbUuid && isSwitch;
-  const useSmokeSensor = tbUuid && !isSwitch && isSmokeSensorTelemetryDevice(d);
-  const useHumanSensor = tbUuid && !isSwitch && !useSmokeSensor && isHumanSensorTelemetryDevice(d);
+  const canControlByHttp = TB_UUID_RE.test(resolvedId);
+  const useNewgenSwitchPower = canControlByHttp && isSwitch;
+  const useSmokeSensor = !isSwitch && isSmokeSensorTelemetryDevice(d);
+  const useHumanSensor = !isSwitch && !useSmokeSensor && isHumanSensorTelemetryDevice(d);
   const useDoorSensor =
-    tbUuid && !isSwitch && !useSmokeSensor && !useHumanSensor && isDoorSensorTelemetryDevice(d);
+    !isSwitch && !useSmokeSensor && !useHumanSensor && isDoorSensorTelemetryDevice(d);
   const useFenceSensor =
-    tbUuid && !isSwitch && !useSmokeSensor && !useHumanSensor && !useDoorSensor && isFenceSensorTelemetryDevice(d);
-  const useLedStrip =
-    tbUuid &&
+    !isSwitch && !useSmokeSensor && !useHumanSensor && !useDoorSensor && isFenceSensorTelemetryDevice(d);
+  const useSiren =
     !isSwitch &&
     !useSmokeSensor &&
     !useHumanSensor &&
     !useDoorSensor &&
     !useFenceSensor &&
+    isSirenTelemetryDevice(d);
+  const useLedStrip =
+    !isSwitch &&
+    !useSmokeSensor &&
+    !useHumanSensor &&
+    !useDoorSensor &&
+    !useFenceSensor &&
+    !useSiren &&
     isLedStripTelemetryDevice(d);
   const useGatewaySocket =
-    tbUuid &&
     !isSwitch &&
     !useSmokeSensor &&
     !useHumanSensor &&
     !useDoorSensor &&
     !useFenceSensor &&
+    !useSiren &&
     !useLedStrip &&
     isGatewaySocketTelemetryDevice(d);
+  const useGenericHttpPower = canControlByHttp && !useNewgenSwitchPower && !useGatewaySocket;
 
   if (useSmokeSensor) {
     return <SmokeSensorCard deviceId={id} title={name} />;
@@ -85,6 +100,9 @@ export function SmartHomeDeviceRow({ device: d, index: i }: SmartHomeDeviceRowPr
   }
   if (useFenceSensor) {
     return <FenceSensorCard deviceId={id} title={fenceTitle} channel={fenceChannel} />;
+  }
+  if (useSiren) {
+    return <SirenCard deviceId={id} title={name} />;
   }
   if (useLedStrip) {
     return <LedStripCard deviceId={id} title={name} />;
@@ -105,13 +123,17 @@ export function SmartHomeDeviceRow({ device: d, index: i }: SmartHomeDeviceRowPr
           : undefined
       }
       onRemotePowerChange={
-        useGatewaySocket
+        useGatewaySocket && canControlByHttp
           ? async (nextOn) => {
-              await sendGatewayPlugHallwayControl(id, nextOn);
+              await sendGatewayPlugHallwayControl(resolvedId, nextOn);
             }
-          : undefined
+          : useGenericHttpPower
+            ? async (nextOn) => {
+                await postDeviceSharedScopePower(resolvedId, nextOn);
+              }
+            : undefined
       }
-      initialRemotePowerSource={useGatewaySocket ? "gateway-plug" : undefined}
+      initialRemotePowerSource={useGatewaySocket && canControlByHttp ? "gateway-plug" : undefined}
     />
   );
 }

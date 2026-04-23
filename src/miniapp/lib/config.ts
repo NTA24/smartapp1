@@ -89,6 +89,10 @@ export function getNewgenDeviceClientScopeTelemetryUrl(deviceId: string): string
   return `${NEWGEN_API_BASE}/plugins/telemetry/DEVICE/${encodeURIComponent(deviceId)}/CLIENT_SCOPE`;
 }
 
+export function getNewgenDeviceServerScopeTelemetryUrl(deviceId: string): string {
+  return `${NEWGEN_API_BASE}/plugins/telemetry/DEVICE/${encodeURIComponent(deviceId)}/SERVER_SCOPE`;
+}
+
 export function getNewgenDeviceAttributeValuesUrl(
   deviceId: string,
   scope: "SHARED_SCOPE" | "SERVER_SCOPE" | "CLIENT_SCOPE",

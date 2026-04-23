@@ -10,12 +10,12 @@ import {
   GATEWAY_PLUG_ATTR_KEY,
   HUMAN_TS_KEY,
   HUMAN_TS_KEY_ALT,
+  SIREN_WS_KEYS,
   SMOKE_TS_KEY,
   SMOKE_TS_KEY_ALT,
 } from "./tbWsModel";
 import { mapDoorWsPayloadToOpenState, mapFenceWsPayloadToAlarmState, mapPresenceWsPayloadToAlarmState } from "./tbWsParser";
 import {
-  COMMAND_KEYS,
   SWITCH_KEYS,
   SWITCH_KEY_TO_IDX,
 } from "./tbWsSmartSwitch";
@@ -107,13 +107,6 @@ export function useSmartSwitchStatesWs(deviceId: string | null): {
       "client_attr",
       noop,
     );
-    const unsubCmd = tbWsManager.subscribeBatch(
-      deviceId,
-      [...COMMAND_KEYS],
-      "shared_attr",
-      noop,
-    );
-
     const unsubSwitch = tbWsManager.subscribeSmartSwitch(deviceId.trim(), (key, on) => {
       const idx = SWITCH_KEY_TO_IDX[key];
       if (idx === undefined) return;
@@ -142,7 +135,6 @@ export function useSmartSwitchStatesWs(deviceId: string | null): {
       cancelled = true;
       window.clearTimeout(bootstrapTid);
       unsubState();
-      unsubCmd();
       unsubSwitch();
     };
   }, [deviceId]);
@@ -187,6 +179,57 @@ export function useFenceSensorWs(deviceId: string | null, channel?: 1 | 2): {
   const { value: raw, rev } = useTbWs(deviceId, key, "attr_any");
   return {
     alarm: mapFenceWsPayloadToAlarmState(raw),
+    wsRev: rev,
+  };
+}
+
+function parseSirenNumeric(v: unknown): number | undefined {
+  if (v === undefined || v === null) return undefined;
+  const n = typeof v === "number" ? v : Number(String(v).trim());
+  if (!Number.isFinite(n)) return undefined;
+  return n;
+}
+
+function parseSirenOn(v: unknown): boolean | undefined {
+  if (v === undefined || v === null) return undefined;
+  const s = String(v).toLowerCase().trim();
+  if (["on", "true", "1", "alarm"].includes(s)) return true;
+  if (["off", "false", "0"].includes(s)) return false;
+  return undefined;
+}
+
+/** WS: cùng format `ATTRIBUTES` + `scope: null` như log ThingsBoard (attr_any). */
+export function useSirenStatesWs(deviceId: string | null): {
+  on: boolean | undefined;
+  tune: number | undefined;
+  volume: number | undefined;
+  durationSec: number | undefined;
+  levelRaw: number | undefined;
+  wsRev: number;
+} {
+  const [map, setMap] = useState<Record<string, unknown>>({});
+  const [rev, setRev] = useState(0);
+
+  useEffect(() => {
+    if (!deviceId) {
+      setMap({});
+      setRev(0);
+      return;
+    }
+    setMap({});
+    setRev(0);
+    return tbWsManager.subscribeBatch(deviceId, [...SIREN_WS_KEYS], "attr_any", (key, value) => {
+      setMap((m) => ({ ...m, [key]: value }));
+      setRev((r) => r + 1);
+    });
+  }, [deviceId]);
+
+  return {
+    on: parseSirenOn(map.siren_state ?? map.cmd_siren_state),
+    tune: parseSirenNumeric(map.siren_tune ?? map.cmd_siren_tune),
+    volume: parseSirenNumeric(map.siren_volume ?? map.cmd_siren_volume),
+    durationSec: parseSirenNumeric(map.siren_duration_sec ?? map.cmd_siren_duration_sec),
+    levelRaw: parseSirenNumeric(map.siren_level_raw),
     wsRev: rev,
   };
 }

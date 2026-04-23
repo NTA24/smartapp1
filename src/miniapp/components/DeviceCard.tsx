@@ -6,7 +6,7 @@ import type { DeviceCardKind } from "../lib/deviceCardKind";
 import type { SmartSwitchChannel } from "../services/deviceSync";
 import { useGatewayPlugStateWithFallback } from "../hooks/useGatewayPlugHttpFallback";
 import { useSmartSwitchStatesWs } from "../lib/tbWebSocket";
-import { TB_UUID_RE } from "../utils/tbDeviceUuid";
+import { addLog } from "../lib/debugLog";
 
 const POWER_SVG = (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -43,12 +43,11 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({
   const [powerBusy, setPowerBusy] = useState(false);
   const [channelBusy, setChannelBusy] = useState<SmartSwitchChannel | null>(null);
 
-  const isTbDeviceUuid = TB_UUID_RE.test(deviceId.trim());
-  const quadSwitch = deviceKind === "switch" && isTbDeviceUuid;
+  const quadSwitch = deviceKind === "switch";
   const canPostSwitchChannels = Boolean(onRemoteSwitchChannelChange);
   const kindClass = deviceKind ? `device-card--kind-${deviceKind}` : "";
 
-  /* ── WS realtime — giống demo HTML: mọi push (state-sw* / cmd-sw*) → 1 tuple ── */
+  /* ── WS realtime: chỉ đọc trạng thái state-sw* ── */
   const swWs = useSmartSwitchStatesWs(quadSwitch ? deviceId : null);
 
   
@@ -68,9 +67,13 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({
   
   const onChannelToggle = useCallback(
     (channel: SmartSwitchChannel) => {
-      if (!onRemoteSwitchChannelChange) return;
+      if (!onRemoteSwitchChannelChange) {
+        addLog("[ui_click]", "switch", deviceId, `ch=${channel}`, "no-remote-handler");
+        return;
+      }
       const idx = channel - 1;
       const nextOn = !effectiveChs[idx];
+      addLog("[ui_click]", "switch", deviceId, `ch=${channel}`, nextOn ? "on" : "off");
       setOptimistic((prev) => ({ ...prev, [idx]: nextOn }));
       setChannelBusy(channel);
       void onRemoteSwitchChannelChange(channel, nextOn)
@@ -173,6 +176,7 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({
               e.stopPropagation();
               const next = !(on ?? false);
               if (onRemotePowerChange) {
+                addLog("[ui_click]", "power", deviceId, next ? "on" : "off");
                 if (isHallwayGateway) setGatewayPlugTapOptimistic(next);
                 setPowerBusy(true);
                 void onRemotePowerChange(next)
@@ -180,10 +184,12 @@ export const DeviceCard: React.FC<DeviceCardProps> = ({
                     if (!isHallwayGateway) setPower(next);
                   })
                   .catch(() => {
+                    addLog("[ui_click]", "power", deviceId, "remote-failed");
                     if (isHallwayGateway) setGatewayPlugTapOptimistic(null);
                   })
                   .finally(() => setPowerBusy(false));
               } else {
+                addLog("[ui_click]", "power", deviceId, next ? "on(local)" : "off(local)");
                 setPower(next);
               }
             }}

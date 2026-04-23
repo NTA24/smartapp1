@@ -3,6 +3,7 @@ import {
   isDoorSensorTelemetryDevice,
   isFenceSensorTelemetryDevice,
   isHumanSensorTelemetryDevice,
+  isSirenTelemetryDevice,
   isSmokeSensorTelemetryDevice,
   type SmartBuildingDeviceRecord,
 } from "../services/deviceSync";
@@ -28,7 +29,8 @@ function sensorPriority(d: SmartBuildingDeviceRecord): number {
   if (isFenceSensorTelemetryDevice(d)) return 1;
   if (isHumanSensorTelemetryDevice(d)) return 2;
   if (isSmokeSensorTelemetryDevice(d)) return 3;
-  return 4;
+  if (isSirenTelemetryDevice(d)) return 4;
+  return 5;
 }
 
 export function sortDevicesForUi(devices: SmartBuildingDeviceRecord[]): SmartBuildingDeviceRecord[] {

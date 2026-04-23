@@ -6,6 +6,7 @@ export {
   useGatewayPlugStateWs,
   useHumanDetectedWs,
   useLedStripStatesWs,
+  useSirenStatesWs,
   useSmokeDetectedWs,
   useSmartSwitchStatesWs,
 } from "./hooks";

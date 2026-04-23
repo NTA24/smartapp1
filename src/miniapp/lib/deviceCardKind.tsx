@@ -29,7 +29,7 @@ export function inferDeviceCardKind(d: SmartBuildingDeviceRecord): DeviceCardKin
   const t = combinedText(d);
 
   if (
-    /\b(sensor|cảm biến|cam bien|smoke|human|motion|door|window|temp|humidity|leak|pir|radar|occupancy)\b/.test(
+    /\b(sensor|cảm biến|cam bien|smoke|human|motion|door|window|temp|humidity|leak|pir|radar|occupancy|siren)\b/.test(
       t,
     ) ||
     /khói|khoi|chuyển động|chuyen dong/.test(t)

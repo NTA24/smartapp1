@@ -1,25 +1,16 @@
 import { useCallback, useState } from "react";
 
 
-export function useDevicePower(deviceId: string, defaultOn: boolean = false) {
+export function useDevicePower(_deviceId: string, defaultOn: boolean = false) {
   const [on, setOn] = useState<boolean>(() => defaultOn);
 
   const toggle = useCallback(() => {
-    setOn((prev) => {
-      const next = !prev;
-      if (typeof window !== "undefined" && window.JSBridge) {
-        window.JSBridge.send("device/setPower", { deviceId, on: next }, () => {});
-      }
-      return next;
-    });
-  }, [deviceId]);
+    setOn((prev) => !prev);
+  }, []);
 
   const setPower = useCallback((value: boolean) => {
     setOn(value);
-    if (typeof window !== "undefined" && window.JSBridge) {
-      window.JSBridge.send("device/setPower", { deviceId, on: value }, () => {});
-    }
-  }, [deviceId]);
+  }, []);
 
   return { on, toggle, setPower };
 }

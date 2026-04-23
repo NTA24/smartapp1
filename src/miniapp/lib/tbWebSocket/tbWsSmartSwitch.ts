@@ -1,12 +1,10 @@
 const SWITCH_KEYS = ["state-sw1", "state-sw2", "state-sw3", "state-sw4"] as const;
-const COMMAND_KEYS = ["cmd-sw1", "cmd-sw2", "cmd-sw3", "cmd-sw4"] as const;
-const TRACKED_ATTR_KEYS = new Set<string>([...SWITCH_KEYS, ...COMMAND_KEYS]);
+const TRACKED_ATTR_KEYS = new Set<string>([...SWITCH_KEYS]);
 
-export { SWITCH_KEYS, COMMAND_KEYS };
+export { SWITCH_KEYS };
 
 export const SWITCH_KEY_TO_IDX: Record<string, 0 | 1 | 2 | 3> = {
   "state-sw1": 0, "state-sw2": 1, "state-sw3": 2, "state-sw4": 3,
-  "cmd-sw1": 0, "cmd-sw2": 1, "cmd-sw3": 2, "cmd-sw4": 3,
 };
 
 export function parseSwitchBool(value: unknown): boolean {
