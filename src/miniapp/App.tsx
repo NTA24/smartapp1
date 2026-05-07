@@ -13,11 +13,13 @@ import { ProfilePage } from "./pages/ProfilePage";
 import { DevicePage } from "./pages/DevicePage";
 import { DeviceTimerPage } from "./pages/DeviceTimerPage";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
+import { NotificationsPage } from "./pages/NotificationsPage";
 import { AddDevicePage } from "./pages/AddDevicePage";
 import { MyDevicesPage } from "./pages/MyDevicesPage";
 import { WsHumanSensorLabPage } from "./pages/WsHumanSensorLabPage";
 import { WsHallwayPlugLabPage } from "./pages/WsHallwayPlugLabPage";
 import { MiniAppLogPanel } from "./components/MiniAppLogPanel";
+import { TammiAlarmRedirectPage } from "./pages/TammiAlarmRedirectPage";
 type PlaceholderRoute = { path: string; title: string; backTo: string };
 
 const PLACEHOLDER_ROUTES: PlaceholderRoute[] = [
@@ -39,7 +41,6 @@ const PLACEHOLDER_ROUTES: PlaceholderRoute[] = [
   { path: "/hub", title: "Hub & cổng", backTo: "/profile" },
   { path: "/settings", title: "Cài đặt", backTo: "/profile" },
   { path: "/notification-settings", title: "Cài đặt thông báo", backTo: "/settings" },
-  { path: "/notifications", title: "Thông báo", backTo: "/" },
   { path: "/help", title: "Trợ giúp và phản hồi", backTo: "/profile" },
 ];
 
@@ -72,6 +73,9 @@ export default function App() {
             <Route path="/device/:deviceId/timer" element={<DeviceTimerPage />} />
             <Route path="/add-device" element={<AddDevicePage />} />
             <Route path="/my-devices" element={<MyDevicesPage />} />
+            <Route path="/notifications" element={<NotificationsPage />} />
+            <Route path="/pages/alarm/index" element={<TammiAlarmRedirectPage />} />
+            <Route path="/alarm/index" element={<TammiAlarmRedirectPage />} />
             <Route path="/dev/ws-human" element={<WsHumanSensorLabPage />} />
             <Route path="/dev/ws-plug" element={<WsHallwayPlugLabPage />} />
             {PLACEHOLDER_ROUTES.map((route) => (

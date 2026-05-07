@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { fetchDeviceSwitchChannelStates } from "../../services/deviceSync";
-import { getNewgenWsUseCmdsFormat } from "../config";
 import {
   type BatchAttrCb,
   DOOR_TS_KEY,
@@ -268,9 +267,9 @@ export function useLedStripStatesWs(deviceId: string | null): {
   colorTemp: number | undefined;
   wsRev: number;
 } {
-  const subType: "ts" | "attr" = getNewgenWsUseCmdsFormat() ? "ts" : "attr";
-  const { value: rawLight, rev: r1 } = useTbWs(deviceId, LED_STATE_LIGHT_KEY, subType);
-  const { value: rawTemp, rev: r2 } = useTbWs(deviceId, LED_COLOR_TEMP_KEY, subType);
+  // Theo log ThingsBoard: subscribe ATTRIBUTES với scope null => attr_any.
+  const { value: rawLight, rev: r1 } = useTbWs(deviceId, LED_STATE_LIGHT_KEY, "attr_any");
+  const { value: rawTemp, rev: r2 } = useTbWs(deviceId, LED_COLOR_TEMP_KEY, "attr_any");
   return {
     lightOn: parseLedLightState(rawLight),
     colorTemp: parseLedColorTemp(rawTemp),

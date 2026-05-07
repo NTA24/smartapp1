@@ -123,6 +123,21 @@ export const ProfilePage: React.FC = () => {
         <span className="profile-page__list-arrow">›</span>
       </Link>
 
+      <div className="profile-page__notif-demo">
+        <div className="profile-page__notif-demo-title">Demo thông báo</div>
+        <div className="profile-page__notif-demo-actions">
+          <Link to="/notifications" className="profile-page__notif-demo-btn">
+            Xem màn thông báo
+          </Link>
+          <Link
+            to="/pages/alarm/index?alarmId=123456&listIdByAlarm=%5B%7B%22id%22%3A%22123456%22%2C%22title%22%3A%22human%20detected%22%2C%22ts%22%3A%221777341878834%22%7D%2C%7B%22id%22%3A%22123457%22%2C%22title%22%3A%22motion%20detected%22%2C%22ts%22%3A%221777341978834%22%7D%5D"
+            className="profile-page__notif-demo-btn profile-page__notif-demo-btn--primary"
+          >
+            Test redirect từ Tammi
+          </Link>
+        </div>
+      </div>
+
       {import.meta.env.DEV && (
         <>
           <Link to="/dev/ws-human" className="profile-page__list-item profile-page__list-item--dev">

@@ -13,6 +13,19 @@ declare module "react" {
 }
 
 declare global {
+  interface MiniAppAlarmItem {
+    id?: string;
+    title?: string;
+    tittle?: string;
+    ts?: string | number;
+  }
+
+  interface MiniAppLaunchParams {
+    alarmId?: string;
+    listIdByAlarm?: MiniAppAlarmItem[];
+    [key: string]: unknown;
+  }
+
   interface ErudaApi {
     init: (opts?: Record<string, unknown>) => void;
   }
@@ -61,6 +74,7 @@ declare global {
     APP_API_BASE_URL?: string;
     THINGSBOARD_TOKEN?: string;
     THINGSBOARD_DEVICE_ID?: string;
+    MINIAPP_PARAMS?: MiniAppLaunchParams;
     NativeBridge?: { call: (a: unknown, b: unknown) => void };
     webkit?: {
       messageHandlers?: { JSBridge?: unknown };
